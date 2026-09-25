@@ -7,7 +7,7 @@ survives between runs. Java 21, Maven, layered architecture (transport / service
 then [CONTRIBUTING.md](CONTRIBUTING.md) (branches, commits, PRs).
 
 ## Requirements
-- JDK 21, Maven 3.9+
+- JDK 21+, Maven 3.9+
 
 ## Build, test, run
 ```bash

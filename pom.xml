@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.kood</groupId>
+    <groupId>com.rentaltracker</groupId>
     <artifactId>rental-tracker</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
@@ -23,7 +23,7 @@
         <compiler.plugin.version>3.13.0</compiler.plugin.version>
         <exec.plugin.version>3.5.0</exec.plugin.version>
 
-        <app.main.class>com.kood.rentaltracker.Main</app.main.class>
+        <app.main.class>com.rentaltracker.Main</app.main.class>
     </properties>
 
     <dependencies>

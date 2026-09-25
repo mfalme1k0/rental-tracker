@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 /**
  * An account: the owner of the items, or a renter created from a name. {@code password} is always null in
- * project 1 (kept so project 2 needs no schema change).
+ * the domain, and is never stored in the database.
  *
  * <p>Records perform NO validation on purpose. Tests must be able to build an invalid object (e.g. an Item with a
  * null name) and push it at the repository to prove the DATABASE rejects it. Business validation lives in the

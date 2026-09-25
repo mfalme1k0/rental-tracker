@@ -133,7 +133,7 @@ make it impossible to return.
 - Repository tests -> data layer and constraints. Service tests -> state transitions and business rules.
 - Tests must pass in any order (no shared state).
 
-## 8. Open questions (decide as a team, then record the answer here)
+## 8. Open questions (decide as a team)
 
 - May a user rent an item to themselves?
 - Is `cost_per_day` a whole number (spec examples say yes) or does it need decimals?

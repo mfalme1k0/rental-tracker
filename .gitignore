@@ -4,7 +4,7 @@ target/
 # IntelliJ IDEA
 ../.idea/
 *.iml
-
+.idea/
 # Java compiler output
 *.class
 

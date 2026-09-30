@@ -77,22 +77,86 @@ public class SQLiteUserRepository implements UserRepository {
 
     @Override
     public Optional<User> findById(long id) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        String sql = """
+            SELECT id, username, created_at
+            FROM users
+            WHERE id = ?
+            """;
+
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setLong(1, id);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(mapUser(resultSet));
+            }
+
+        } catch (SQLException e) {
+            throw SQLiteExceptionTranslator.translate(e);
+        }
     }
 
     @Override
     public Optional<User> findByUsername(String username) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        String sql = """
+            SELECT id, username, created_at
+            FROM users
+            WHERE username = ?
+            """;
+
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setString(1, username);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(mapUser(resultSet));
+            }
+
+        } catch (SQLException e) {
+            throw SQLiteExceptionTranslator.translate(e);
+        }
     }
 
     @Override
     public Optional<User> findFirst() {
-        throw new UnsupportedOperationException("Not implemented yet");
+        String sql = """
+            SELECT id, username, created_at
+            FROM users
+            ORDER BY id ASC
+            LIMIT 1
+            """;
+
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet resultSet = statement.executeQuery()) {
+
+            if (!resultSet.next()) {
+                return Optional.empty();
+            }
+
+            return Optional.of(mapUser(resultSet));
+
+        } catch (SQLException e) {
+            throw SQLiteExceptionTranslator.translate(e);
+        }
     }
 
     @Override
     public User getById(long id) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        return findById(id)
+                .orElseThrow(() ->
+                        new NotFoundException("User not found: " + id)
+                );
     }
 
     private User mapUser(ResultSet resultSet) {

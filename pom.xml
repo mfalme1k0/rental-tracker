@@ -12,7 +12,7 @@
 
     <properties>
         <!-- One JDK for the whole team: records, switch expressions, java.time.Clock are all relied upon. -->
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <sqlite.version>3.53.2.0</sqlite.version>

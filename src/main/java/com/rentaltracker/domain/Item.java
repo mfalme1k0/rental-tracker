@@ -1,24 +1,25 @@
 package com.rentaltracker.domain;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * A listed item. Immutable: "changing" it returns a new instance.
- *
- * @param id        null until inserted
- * @param createdAt null until inserted (set by the database)
+ * { BigDecimal} is the standard fix and matches how the database
+ * will store it (SQLite has no native decimal type, so the repository layer stores it as TEXT and parses it
+ * back.
  */
 public record Item(
         Long id,
         Long ownerId,
         String name,
         String description,
-        int costPerDay,
+        BigDecimal costPerDay,
         ItemStatus status,
         LocalDateTime createdAt) {
 
     /** A freshly listed item: status AVAILABLE, per the spec ("listing sets an item to available"). */
-    public static Item newListing(Long ownerId, String name, String description, int costPerDay) {
+    public static Item newListing(Long ownerId, String name, String description, BigDecimal costPerDay) {
         return new Item(null, ownerId, name, description, costPerDay, ItemStatus.AVAILABLE, null);
     }
 

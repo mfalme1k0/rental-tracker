@@ -3,6 +3,7 @@ package com.rentaltracker.domain;
 import com.rentaltracker.exception.InvalidStateTransitionException;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,29 +25,29 @@ class DomainModelTest {
 
     @Test
     void newListingIsAvailableAndUnsaved() {
-        Item item = Item.newListing(1L, "Ladder", "6-step aluminium ladder", 5);
+        Item item = Item.newListing(1L, "Ladder", "6-step aluminium ladder", BigDecimal.valueOf(5));
         assertNull(item.id());
         assertNull(item.createdAt());
         assertEquals(ItemStatus.AVAILABLE, item.status());
-        assertEquals(5, item.costPerDay());
+        assertEquals(BigDecimal.valueOf(5), item.costPerDay());
     }
 
     @Test
     void recordsAcceptInvalidValuesSoTestsCanProveTheDatabaseRejectsThem() {
-        Item nameless = Item.newListing(1L, null, "no name", 5);
+        Item nameless = Item.newListing(1L, null, "no name", BigDecimal.valueOf(5));
         assertNull(nameless.name());
     }
 
     @Test
     void transitionToAppliesTheStateMachine() {
-        Item rented = Item.newListing(1L, "Ladder", "d", 5).transitionTo(ItemStatus.RENTED);
+        Item rented = Item.newListing(1L, "Ladder", "d", BigDecimal.valueOf(5)).transitionTo(ItemStatus.RENTED);
         assertEquals(ItemStatus.RENTED, rented.status());
         assertThrows(InvalidStateTransitionException.class, () -> rented.transitionTo(ItemStatus.RENTED));
     }
 
     @Test
     void withStatusDoesNotCheckRulesAndKeepsOtherFields() {
-        Item item = new Item(7L, 1L, "Drill", "cordless", 8, ItemStatus.UNLISTED, START);
+        Item item = new Item(7L, 1L, "Drill", "cordless", BigDecimal.valueOf(8), ItemStatus.UNLISTED, START);
         Item copy = item.withStatus(ItemStatus.RENTED);
         assertEquals(ItemStatus.RENTED, copy.status());
         assertEquals(7L, copy.id());
@@ -77,7 +78,7 @@ class DomainModelTest {
 
     @Test
     void readModelsExposeTheirParts() {
-        Item item = Item.newListing(1L, "Ladder", "d", 5);
+        Item item = Item.newListing(1L, "Ladder", "d", BigDecimal.valueOf(5));
         assertEquals("liisa", new ItemDetails(item, "liisa").ownerUsername());
         Rental rental = Rental.newActive(1L, 2L, START, START.plusDays(1));
         RentalDetails details = new RentalDetails(rental, "Ladder", "meelis");

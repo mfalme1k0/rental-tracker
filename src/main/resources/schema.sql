@@ -11,10 +11,17 @@ CREATE TABLE listed_items (
                               owner_id INTEGER NOT NULL,
                               name TEXT NOT NULL,
                               description TEXT,
-                              cost_per_day INTEGER NOT NULL CHECK (cost_per_day >= 1),
-                              status TEXT NOT NULL CHECK (
-                                  status IN ('available', 'rented', 'unlisted')
-                                  ),
+                              cost_per_day TEXT NOT NULL CHECK (
+                                  cost_per_day NOT GLOB '*[^0-9.]*'
+                                  AND length(cost_per_day) > 0
+                                  AND length(cost_per_day) - length(replace(cost_per_day, '.', '')) <= 1
+                                  AND substr(cost_per_day, 1, 1) GLOB '[0-9]'
+                                  AND substr(cost_per_day, -1, 1) GLOB '[0-9]'
+                                  AND replace(replace(cost_per_day, '0', ''), '.', '') <> ''
+),
+status TEXT NOT NULL CHECK (
+    status IN ('available', 'rented', 'unlisted')
+),
                               created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
                               FOREIGN KEY (owner_id)

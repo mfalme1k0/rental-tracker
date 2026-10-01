@@ -10,6 +10,7 @@ import com.rentaltracker.infrastructure.DatabaseManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -39,7 +40,7 @@ class SQLiteItemRepositoryTest {
                 owner.id(),
                 "Mountain Bike",
                 "A red mountain bike",
-                100
+                BigDecimal.valueOf(100)
         );
 
         Item saved = itemRepository.insert(item);
@@ -48,7 +49,10 @@ class SQLiteItemRepositoryTest {
         assertEquals(owner.id(), saved.ownerId());
         assertEquals("Mountain Bike", saved.name());
         assertEquals("A red mountain bike", saved.description());
-        assertEquals(100, saved.costPerDay());
+        assertEquals(
+                BigDecimal.valueOf(100),
+                saved.costPerDay()
+        );
         assertEquals(ItemStatus.AVAILABLE, saved.status());
         assertNotNull(saved.createdAt());
     }
@@ -64,7 +68,7 @@ class SQLiteItemRepositoryTest {
                 999L,
                 "Mountain Bike",
                 "A red mountain bike",
-                100
+                BigDecimal.valueOf(100)
         );
 
         assertThrows(
@@ -92,7 +96,7 @@ class SQLiteItemRepositoryTest {
                 owner.id(),
                 null,
                 "Description",
-                100,
+                BigDecimal.valueOf(100),
                 ItemStatus.AVAILABLE,
                 null
         );
@@ -133,7 +137,7 @@ class SQLiteItemRepositoryTest {
                         owner.id(),
                         "Mountain Bike",
                         "A red mountain bike",
-                        100
+                        BigDecimal.valueOf(100)
                 )
         );
 
@@ -162,7 +166,7 @@ class SQLiteItemRepositoryTest {
                         owner.id(),
                         "Mountain Bike",
                         "A red mountain bike",
-                        100
+                        BigDecimal.valueOf(100)
                 )
         );
 
@@ -190,7 +194,7 @@ class SQLiteItemRepositoryTest {
                         alice.id(),
                         "Mountain Bike",
                         "Bike",
-                        100
+                        BigDecimal.valueOf(100)
                 )
         );
 
@@ -199,7 +203,7 @@ class SQLiteItemRepositoryTest {
                         alice.id(),
                         "Camera",
                         "Camera",
-                        50
+                        BigDecimal.valueOf(50)
                 )
         );
 
@@ -231,7 +235,7 @@ class SQLiteItemRepositoryTest {
                         alice.id(),
                         "Mountain Bike",
                         "Bike",
-                        100
+                        BigDecimal.valueOf(100)
                 )
         );
 
@@ -240,7 +244,7 @@ class SQLiteItemRepositoryTest {
                         bob.id(),
                         "Camera",
                         "Camera",
-                        50
+                        BigDecimal.valueOf(50)
                 )
         );
 
@@ -286,7 +290,7 @@ class SQLiteItemRepositoryTest {
                         owner.id(),
                         "Mountain Bike",
                         "Bike",
-                        100
+                        BigDecimal.valueOf(100)
                 )
         );
 
@@ -295,7 +299,7 @@ class SQLiteItemRepositoryTest {
                         owner.id(),
                         "Camera",
                         "Camera",
-                        50
+                        BigDecimal.valueOf(50)
                 )
         );
 
@@ -350,7 +354,7 @@ class SQLiteItemRepositoryTest {
                         owner.id(),
                         "Mountain Bike",
                         "Bike",
-                        100
+                        BigDecimal.valueOf(100)
                 )
         );
 

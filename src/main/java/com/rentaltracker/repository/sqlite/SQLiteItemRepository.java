@@ -6,6 +6,7 @@ import com.rentaltracker.exception.NotFoundException;
 import com.rentaltracker.infrastructure.DatabaseManager;
 import com.rentaltracker.repository.ItemRepository;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -59,7 +60,7 @@ public class SQLiteItemRepository implements ItemRepository {
             insertStatement.setLong(1, item.ownerId());
             insertStatement.setString(2, item.name());
             insertStatement.setString(3, item.description());
-            insertStatement.setInt(4, item.costPerDay());
+            insertStatement.setString(4, item.costPerDay().toPlainString());
             insertStatement.setString(5, item.status().dbValue());
 
             insertStatement.executeUpdate();
@@ -246,7 +247,8 @@ public class SQLiteItemRepository implements ItemRepository {
             long ownerId = resultSet.getLong("owner_id");
             String name = resultSet.getString("name");
             String description = resultSet.getString("description");
-            int costPerDay = resultSet.getInt("cost_per_day");
+            String costPerDayValue = resultSet.getString("cost_per_day");
+            BigDecimal costPerDay = new BigDecimal(costPerDayValue);
 
             String statusValue = resultSet.getString("status");
             ItemStatus status = ItemStatus.fromDbValue(statusValue);

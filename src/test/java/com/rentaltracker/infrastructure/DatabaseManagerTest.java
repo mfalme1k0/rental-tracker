@@ -297,6 +297,8 @@ class DatabaseManagerTest {
         DatabaseManager databaseManager =
                 new DatabaseManager("jdbc:sqlite:" + database);
 
+
+
         databaseManager.initialize();
 
         return databaseManager;

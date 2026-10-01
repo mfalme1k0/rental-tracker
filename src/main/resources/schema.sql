@@ -49,3 +49,6 @@ CREATE TABLE rentals (
                              REFERENCES users(id)
                              ON DELETE RESTRICT
 );
+CREATE UNIQUE INDEX idx_rentals_one_active_per_item
+    ON rentals(item_id)
+    WHERE status = 'active';

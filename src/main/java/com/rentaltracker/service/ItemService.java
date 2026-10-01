@@ -2,15 +2,20 @@ package com.rentaltracker.service;
 
 import com.rentaltracker.domain.Item;
 import com.rentaltracker.domain.ItemDetails;
+import com.rentaltracker.domain.ItemStatus;
+import com.rentaltracker.domain.Rental;
+import com.rentaltracker.exception.BusinessRuleException;
 import com.rentaltracker.repository.ItemRepository;
 import com.rentaltracker.repository.RentalRepository;
 import com.rentaltracker.repository.Transactor;
 import com.rentaltracker.repository.UserRepository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
-/** Listing, inventory, delist/relist. SKELETON: see UserService. */
+/** Listing, inventory, delist/relist. */
 public class ItemService {
 
     private final ItemRepository items;
@@ -28,43 +33,67 @@ public class ItemService {
     /**
      * Creates a listing with status AVAILABLE.
      *
-     * @throws com.rentaltracker.exception.ValidationException blank name, or cost per day below 1
+     * <p>No transaction needed: this is a single insert. {@link Transactor} is only used where more than one
+     * write must succeed or fail together (see {@link #relist} and {@code RentalService}).
+     *
+     * @throws com.rentaltracker.exception.ValidationException blank name, or cost per day not a positive amount
+     * @throws com.rentaltracker.exception.ForeignKeyConstraintException ownerId does not exist
      */
-    public Item listItem(long ownerId, String name, String description, int costPerDay) {
-        throw new UnsupportedOperationException("TODO service PR");
+    public Item listItem(long ownerId, String name, String description, BigDecimal costPerDay) {
+        String cleanName = Validation.requireNonBlank(name, "name");
+        BigDecimal validCost = Validation.requirePositive(costPerDay);
+        // description is free text and may legitimately be blank/absent, so it is not run through requireNonBlank
+        return items.insert(Item.newListing(ownerId, cleanName, description, validCost));
     }
 
-    /** Every item the owner has, whatever its status. */
+    /** Every item the owner has, whatever its status (the inventory screen). */
     public List<Item> getInventory(long ownerId) {
-        throw new UnsupportedOperationException("TODO service PR");
+        return items.findByOwnerId(ownerId);
     }
 
-    /** Only AVAILABLE items: the "record a rental" list. */
+    /** Only AVAILABLE items: the "record a rental" list, since only those can legally be rented. */
     public List<Item> getAvailableItems(long ownerId) {
-        throw new UnsupportedOperationException("TODO service PR");
-    }
-
-    /** Item plus owner username for the detail screen. @throws com.rentaltracker.exception.NotFoundException */
-    public ItemDetails getDetails(long itemId) {
-        throw new UnsupportedOperationException("TODO service PR");
+        return items.findByOwnerIdAndStatus(ownerId, ItemStatus.AVAILABLE);
     }
 
     /**
-     * AVAILABLE or RENTED -> UNLISTED.
-     *
+     * Item plus its owner's username, for the item detail screen. throws com.rentaltracker.exception.NotFoundException no item with this id
+     */
+    public ItemDetails getDetails(long itemId) {
+        Item item = items.getById(itemId);
+        String ownerUsername = users.getById(item.ownerId()).username();
+        return new ItemDetails(item, ownerUsername);
+    }
+
+    /**
+     * AVAILABLE or RENTED -> UNLISTED. An item delisted while rented stays "out"; its active rental is untouched
+     * @throws com.rentaltracker.exception.NotFoundException no item with this id
      * @throws com.rentaltracker.exception.InvalidStateTransitionException already unlisted
      */
     public Item delist(long itemId) {
-        throw new UnsupportedOperationException("TODO service PR");
+        Item item = items.getById(itemId);
+        Item unlisted = item.transitionTo(ItemStatus.UNLISTED);
+        items.updateStatus(itemId, unlisted.status());
+        return unlisted;
     }
 
     /**
      * UNLISTED -> AVAILABLE, only when the item has no active rental.
-     *
-     * @throws com.rentaltracker.exception.BusinessRuleException the item is still out on rental
-     * @throws com.rentaltracker.exception.InvalidStateTransitionException the item is not unlisted
+     * @throws com.rentaltracker.exception.NotFoundException no item with this id
+     * @throws com.rentaltracker.exception.InvalidStateTransitionException the item is not currently unlisted
+     * @throws BusinessRuleException the item is still out on an active rental
      */
     public Item relist(long itemId) {
-        throw new UnsupportedOperationException("TODO service PR");
+        return transactor.inTransaction(() -> {
+            Item item = items.getById(itemId);
+            Optional<Rental> activeRental = rentals.findActiveByItemId(itemId);
+            if (activeRental.isPresent()) {
+                throw new BusinessRuleException(
+                        "Cannot relist item " + itemId + ": it is still out on an active rental");
+            }
+            Item available = item.transitionTo(ItemStatus.AVAILABLE);
+            items.updateStatus(itemId, available.status());
+            return available;
+        });
     }
 }

@@ -1,11 +1,26 @@
+
+# Maven build output
 # Build output (the JaCoCo report is copied to docs/coverage/ before commit, see CONTRIBUTING.md)
 target/
 
+# IntelliJ IDEA
+../.idea/
 # IDEs / OS
 .idea/
 *.iml
+
+# Java compiler output
+*.class
+
+# Local application data
+*.db
+*.sqlite
+*.sqlite3
+
+# Operating system files
 .vscode/
 .DS_Store
+Thumbs.db
 
 # SQLite side files. The seeded data/rental-tracker.db itself IS committed (deliverable).
 *.db-journal

@@ -133,8 +133,10 @@ make it impossible to return.
 - Repository tests -> data layer and constraints. Service tests -> state transitions and business rules.
 - Tests must pass in any order (no shared state).
 
-## 8. Open questions (decide as a team)
+## 8. Decisions made as a team (2026-09)
 
-- May a user rent an item to themselves?
-- Is `cost_per_day` a whole number (spec examples say yes) or does it need decimals?
-- Minimum rental duration: 1 day?
+| # | Decision | Why | Enforced by |
+|---|---|---|---|
+| D15 | **No self-rental.** The renter must be a different account than the item's owner. | Otherwise an owner could "rent" their own item to inflate history or bypass the point of tracking who has what. | `RentalService.recordRental` compares `renter.id()` to `item.ownerId()` by identity (not by username text) and throws `BusinessRuleException`. A CHECK constraint (`renter_id != owner_id` via a join, or enforced at write time) should also guard this in `schema.sql` as a second line of defense — see Fidel's section below. |
+| D16 | **`cost_per_day` is a decimal, not a whole number.** | The spec's sample data happens to use whole numbers, but real pricing needs cents (e.g. 2.50/day). | Domain: `Item.costPerDay` is `java.math.BigDecimal` (never `double` — binary floats cannot represent decimal fractions exactly, and repeated arithmetic would drift). Service: `Validation.requirePositive` rejects zero/negative. Database: SQLite has no decimal type, so Fidel stores it as TEXT and parses it back in the repository (see docs/database-design.md, to be filled in) — never as SQLite's REAL/float type, for the same reason. |
+| D17 | **Minimum rental duration is 1 day.** No same-day/zero-day rentals. | Keeps the "end = start + days" model simple and matches how the item is billed (per day). | `Validation.requireAtLeastMinimumDays` in the service layer; also enforceable in `schema.sql` as `CHECK (end_time > start_time)` (already listed in section 6) as a second line of defense. |

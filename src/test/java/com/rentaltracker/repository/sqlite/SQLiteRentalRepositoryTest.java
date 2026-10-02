@@ -605,4 +605,61 @@ class SQLiteRentalRepositoryTest {
                 updated.returnedAt()
         );
     }
+
+    @Test
+    void updateStatusThrowsWhenRentalDoesNotExist() {
+        assertThrows(
+                NotFoundException.class,
+                () -> rentalRepository.updateStatus(
+                        999L,
+                        RentalStatus.CLOSED,
+                        LocalDateTime.of(2026, 9, 3, 10, 0)
+                )
+        );
+    }
+
+    @Test
+    void updateStatusAllowsNullReturnedAt() {
+        User owner = userRepository.insert(
+                User.newUser("owner")
+        );
+
+        User renter = userRepository.insert(
+                User.newUser("renter")
+        );
+
+        Item item = itemRepository.insert(
+                Item.newListing(
+                        owner.id(),
+                        "Camera",
+                        "Digital camera",
+                        new BigDecimal("100.50")
+                )
+        );
+
+        Rental rental = rentalRepository.insert(
+                Rental.newActive(
+                        item.id(),
+                        renter.id(),
+                        LocalDateTime.of(2026, 9, 1, 10, 0),
+                        LocalDateTime.of(2026, 9, 3, 10, 0)
+                )
+        );
+
+        rentalRepository.updateStatus(
+                rental.id(),
+                RentalStatus.ACTIVE,
+                null
+        );
+
+        Rental updated =
+                rentalRepository.getById(rental.id());
+
+        assertEquals(
+                RentalStatus.ACTIVE,
+                updated.status()
+        );
+
+        assertNull(updated.returnedAt());
+    }
 }

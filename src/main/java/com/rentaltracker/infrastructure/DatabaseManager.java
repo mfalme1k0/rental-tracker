@@ -5,6 +5,7 @@ import com.rentaltracker.exception.DatabaseConnectionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -12,14 +13,16 @@ import java.sql.Statement;
 
 public final class DatabaseManager {
 
-    private final String databaseUrl;
+    private final Path databasePath;
 
-    public DatabaseManager(String databaseUrl) {
-        this.databaseUrl = databaseUrl;
+    public DatabaseManager(Path databasePath) {
+        this.databasePath = databasePath;
     }
 
     public Connection getConnection() {
         try {
+            String databaseUrl = "jdbc:sqlite:" + databasePath;
+
             Connection connection = DriverManager.getConnection(databaseUrl);
 
             try (Statement statement = connection.createStatement()) {
@@ -43,7 +46,10 @@ public final class DatabaseManager {
                 throw new DatabaseConnectionException("schema.sql not found");
             }
 
-            String schema = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            String schema = new String(
+                    input.readAllBytes(),
+                    StandardCharsets.UTF_8
+            );
 
             try (Statement statement = connection.createStatement()) {
                 statement.executeUpdate(schema);
@@ -57,3 +63,4 @@ public final class DatabaseManager {
         }
     }
 }
+

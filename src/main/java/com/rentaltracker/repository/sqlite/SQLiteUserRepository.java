@@ -35,8 +35,8 @@ public class SQLiteUserRepository implements UserRepository {
                 FROM users
                 WHERE id = ?
                 """;
-
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement insertStatement = connection.prepareStatement(
                      insertSql,
                      Statement.RETURN_GENERATED_KEYS)) {
@@ -82,8 +82,8 @@ public class SQLiteUserRepository implements UserRepository {
             FROM users
             WHERE id = ?
             """;
-
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setLong(1, id);
@@ -108,8 +108,8 @@ public class SQLiteUserRepository implements UserRepository {
             FROM users
             WHERE username = ?
             """;
-
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setString(1, username);
@@ -135,8 +135,8 @@ public class SQLiteUserRepository implements UserRepository {
             ORDER BY id ASC
             LIMIT 1
             """;
-
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement statement = connection.prepareStatement(sql);
              ResultSet resultSet = statement.executeQuery()) {
 

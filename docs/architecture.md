@@ -103,7 +103,8 @@ make it impossible to return.
 | D7 | **Read models** `RentalDetails`, `ItemDetails`. | The return list needs item name + renter username per row: one joined query, not one query per row. |
 | D8 | **`Clock` injected into `RentalService`**; `Main` passes `Clock.systemUTC()`. | "End time = start + days" must be testable with a fixed instant. |
 | D9 | **Timestamps stored as UTC text `yyyy-MM-dd HH:mm:ss`**, `LocalDateTime` in the domain, formatted for display only in transport. | SQLite `CURRENT_TIMESTAMP` is UTC and text. Mixing local and UTC between `created_at` (database) and `start_time` (app) would silently corrupt comparisons and ordering. |
-| D10 | **No static singletons; constructor injection wired only in `Main`.** `DatabaseManager` takes a `Path`. | Tests build the whole app on a temp file. Also makes the dependency direction visible in code. |
+| D10 | **No static singletons; constructor injection wired only in `Main`.** `DatabaseManager` takes a `Path` and owns connection creation/configuration rather than a persistent application-wide connection. | Tests build the whole app on a temp file. Also makes the dependency direction visible in code. Normal repository operations use a connection for the duration of the operation; an active transaction owns one connection shared by participating repositories and closes it when the transaction commits or rolls back. |
+
 | D11 | **Console I/O is injected** (`ConsoleInput` reads an `InputStream`, menus write to a `PrintStream`). | The spec demands 100% coverage; untestable `System.in/out` in the menus would make that impossible. ArchUnit forbids `System.in/out/err` outside `transport` (and `Main`). |
 | D12 | **Pagination is in memory, in transport, one reusable list screen.** | Lists are small here; SQL stays simple; the three lists behave identically because they share one implementation. |
 | D13 | **Owner = lowest-id user.** Empty users table = first launch. | The users table also stores renters, so "the account" has to be identified somehow; the owner is always the first row created (before any renter can exist). Revisit in project 2 (multi-user). |
@@ -121,8 +122,8 @@ make it impossible to return.
 - Translate `SQLiteException` by result code into the four constraint subtypes. Verify early (spike) that the driver
   reports the *extended* result codes; if not, fall back to matching the message text.
 - Row mapping wraps `IllegalArgumentException` / `SQLException` from bad data in `MappingException`.
-- `DatabaseManager` creates the parent directory, throws `DatabaseConnectionException` when the file can't be opened,
-  and implements `AutoCloseable` so exit closes the connection.
+-`DatabaseManager` creates the parent directory and throws `DatabaseConnectionException` when the database cannot be opened. It does **not** hold a persistent application-wide connection and therefore does not implement `AutoCloseable`. Normal repository operations obtain and release their own connection. During a transaction, the transaction-owned connection is reused by participating repositories and is closed by the transaction boundary after commit or rollback.
+
 - Testing the CHECK rule: `ItemStatus` is an enum, so the repository cannot be handed an out-of-range status. Test it
   by executing raw SQL through the same exception translator and asserting `CheckConstraintException`.
 

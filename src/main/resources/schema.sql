@@ -1,12 +1,12 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
                        id INTEGER PRIMARY KEY,
                        username TEXT NOT NULL UNIQUE,
                        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
-CREATE TABLE listed_items (
+CREATE TABLE IF NOT EXISTS listed_items (
                               id INTEGER PRIMARY KEY,
                               owner_id INTEGER NOT NULL,
                               name TEXT NOT NULL,
@@ -29,7 +29,7 @@ status TEXT NOT NULL CHECK (
                                   ON DELETE RESTRICT
 );
 
-CREATE TABLE rentals (
+CREATE TABLE IF NOT EXISTS rentals (
                          id INTEGER PRIMARY KEY,
                          item_id INTEGER NOT NULL,
                          renter_id INTEGER NOT NULL,
@@ -49,6 +49,6 @@ CREATE TABLE rentals (
                              REFERENCES users(id)
                              ON DELETE RESTRICT
 );
-CREATE UNIQUE INDEX idx_rentals_one_active_per_item
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rentals_one_active_per_item
     ON rentals(item_id)
     WHERE status = 'active';

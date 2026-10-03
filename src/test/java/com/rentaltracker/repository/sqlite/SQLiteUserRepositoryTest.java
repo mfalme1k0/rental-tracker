@@ -65,7 +65,7 @@ class SQLiteUserRepositoryTest {
         Path database = tempDir.resolve("rental-tracker.db");
 
         DatabaseManager databaseManager =
-                new DatabaseManager("jdbc:sqlite:" + database);
+                new DatabaseManager(database);
 
         databaseManager.initialize();
 

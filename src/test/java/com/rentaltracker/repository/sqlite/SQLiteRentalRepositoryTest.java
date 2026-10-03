@@ -38,9 +38,7 @@ class SQLiteRentalRepositoryTest {
                 Files.createTempFile("rental-tracker-test-", ".db");
 
         databaseManager =
-                new DatabaseManager(
-                        "jdbc:sqlite:" + databaseFile
-                );
+                new DatabaseManager(databaseFile);
 
         databaseManager.initialize();
 
@@ -345,7 +343,6 @@ class SQLiteRentalRepositoryTest {
             }
         }
     }
-
 
     @Test
     void updateStatusClosesActiveRental() {

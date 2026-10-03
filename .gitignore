@@ -8,7 +8,6 @@ target/
 # IDEs / OS
 .idea/
 *.iml
-.idea/
 # Java compiler output
 *.class
 

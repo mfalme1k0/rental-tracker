@@ -96,6 +96,9 @@ public class SQLiteItemRepository implements ItemRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -129,6 +132,9 @@ public class SQLiteItemRepository implements ItemRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
 
@@ -176,6 +182,9 @@ public class SQLiteItemRepository implements ItemRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -214,6 +223,9 @@ public class SQLiteItemRepository implements ItemRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -240,6 +252,9 @@ public class SQLiteItemRepository implements ItemRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
 

@@ -73,6 +73,9 @@ public class SQLiteUserRepository implements UserRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -98,6 +101,9 @@ public class SQLiteUserRepository implements UserRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
 
@@ -125,6 +131,9 @@ public class SQLiteUserRepository implements UserRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -148,6 +157,9 @@ public class SQLiteUserRepository implements UserRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
 

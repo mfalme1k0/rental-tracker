@@ -123,6 +123,9 @@ public class SQLiteRentalRepository implements RentalRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
 
@@ -156,6 +159,9 @@ public class SQLiteRentalRepository implements RentalRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
     @Override
@@ -200,6 +206,9 @@ public class SQLiteRentalRepository implements RentalRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -233,6 +242,9 @@ public class SQLiteRentalRepository implements RentalRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
     @Override
@@ -292,6 +304,9 @@ public class SQLiteRentalRepository implements RentalRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -336,6 +351,9 @@ public class SQLiteRentalRepository implements RentalRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
     private Rental mapRental(ResultSet resultSet) {

@@ -1,6 +1,7 @@
 package com.rentaltracker.transport;
 
 import com.rentaltracker.domain.User;
+import com.rentaltracker.exception.ValidationException;
 import com.rentaltracker.service.UserService;
 
 import com.rentaltracker.domain.*;
@@ -8,6 +9,7 @@ import com.rentaltracker.service.ItemService;
 import com.rentaltracker.service.RentalService;
 import com.rentaltracker.service.UserService;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -19,10 +21,19 @@ public class Transport {
     private static final int PAGE_SIZE = 5;
 
     private final UserService userService;
+    private final ItemService itemService;
     private final Scanner input;
 
+    public Transport(UserService userService, ItemService itemService) {
+        this.userService = userService;
+        this.itemService = itemService;
+        this.input = new Scanner(System.in);
+    }
+
+    // Temporary until Transactor Impl is complete
     public Transport(UserService userService) {
         this.userService = userService;
+        this.itemService = null;
         this.input = new Scanner(System.in);
     }
 
@@ -70,11 +81,6 @@ public class Transport {
         System.out.print("> ");
     }
 
-    private void printEmptyInventory() {
-        System.out.println();
-        System.out.println("=== My inventory ===");
-        System.out.println("No items found.");
-    }
 
     //        DatabaseInitializer.initialize();
 //
@@ -135,8 +141,8 @@ public class Transport {
     private void runMenu(
 //            Scanner scanner,
             User owner
-//            ,ItemService itemService,
-//            RentalService rentalService
+//            ,ItemService itemService
+//            , RentalService rentalService
     ) {
         boolean running = true;
 
@@ -146,12 +152,8 @@ public class Transport {
             String choice = input.nextLine().trim();
 
             switch (choice) {
-//                case "1" -> listItem(
-//                        scanner,
-//                        owner,
-//                        itemService
-//                );
-//
+//                case "1" -> listItem(owner);
+
 //                case "2" -> viewInventory(
 //                        scanner,
 //                        owner,
@@ -187,203 +189,197 @@ public class Transport {
         }
     }
 
-//    private static void listItem(
-//            Scanner scanner,
-//            User owner,
-//            ItemService itemService
-//    ) {
-//        System.out.println();
-//        System.out.println("=== List an item ===");
-//
-//        System.out.print("Name: ");
-//        String name = scanner.nextLine().trim();
-//
-//        System.out.print("Description: ");
-//        String description = scanner.nextLine().trim();
-//
-//        System.out.print("Cost per day: ");
-//
-//        double costPerDay;
-//
-//        try {
-//            costPerDay = Double.parseDouble(
-//                    scanner.nextLine().trim()
-//            );
-//        } catch (NumberFormatException e) {
-//            System.out.println("Invalid cost.");
-//            return;
-//        }
-//
-//        try {
-//            itemService.listItem(
-//                    owner.getId(),
-//                    name,
-//                    description,
-//                    costPerDay
-//            );
-//
-//            System.out.println(
-//                    "Item listed successfully."
-//            );
-//
-//        } catch (IllegalArgumentException e) {
-//            System.out.println(e.getMessage());
-//        }
-//    }
+    private void listItem(User owner) {
+        System.out.println();
+        System.out.println("=== List an item ===");
 
-//    private static void viewInventory(
+        System.out.print("Name: ");
+        String name = input.nextLine().trim();
+
+        System.out.print("Description: ");
+        String description = input.nextLine().trim();
+
+        System.out.print("Cost per day: ");
+
+        BigDecimal costPerDay;
+
+        try {
+            costPerDay = new BigDecimal(input.nextLine().trim());
+
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid cost.");
+            return;
+        }
+
+        try {
+            itemService.listItem(
+                    owner.id(),
+                    name,
+                    description,
+                    costPerDay
+            );
+
+            System.out.println("Item listed successfully.");
+
+        } catch (ValidationException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private void viewInventory(
 //            Scanner scanner,
-//            User owner,
-//            ItemService itemService,
+            User owner
+//            ,ItemService itemService,
 //            RentalService rentalService
-//    ) {
-//        List<Item> items =
-//                itemService.getInventory(owner.getId());
-//
-//        if (items.isEmpty()) {
-//            printEmptyInventory();
-//            return;
-//        }
-//
-//        int page = 0;
-//
-//        while (true) {
-//            int start = page * PAGE_SIZE;
-//            int end = Math.min(
-//                    start + PAGE_SIZE,
-//                    items.size()
-//            );
-//
-//            printInventoryPage(items, start, end);
-//
-//            String choice = readPaginationChoice(
-//                    scanner,
-//                    page,
-//                    end,
-//                    items.size()
-//            );
-//
-//            if (choice.equals("B")) {
-//                return;
-//            }
-//
-//            if (choice.equals("N")
-//                    && end < items.size()) {
-//                page++;
-//                continue;
-//            }
-//
-//            if (choice.equals("P")
-//                    && page > 0) {
-//                page--;
-//                continue;
-//            }
-//
-//            Integer selected = parseSelection(choice);
-//
-//            if (selected != null
-//                    && selected >= 1
-//                    && selected <= end - start) {
-//
-//                Item item = items.get(
-//                        start + selected - 1
-//                );
-//
-//                showItemDetails(
-//                        scanner,
-//                        item,
-//                        owner,
-//                        itemService,
-//                        rentalService
-//                );
-//
-//                items =
-//                        itemService.getInventory(
-//                                owner.getId()
-//                        );
-//
-//                if (items.isEmpty()) {
-//                    printEmptyInventory();
-//                    return;
-//                }
-//
-//                if (page * PAGE_SIZE >= items.size()) {
-//                    page = Math.max(
-//                            0,
-//                            (items.size() - 1) / PAGE_SIZE
-//                    );
-//                }
-//
-//                continue;
-//            }
-//
-//            System.out.println("Invalid option.");
-//        }
-//    }
+    ) {
+        List<Item> items = itemService.getInventory(owner.id());
 
+        if (items.isEmpty()) {
+            printEmptyInventory();
+            return;
+        }
 
-//    private static void printInventoryPage(
-//            List<Item> items,
-//            int start,
-//            int end
-//    ) {
-//        System.out.println();
-//        System.out.println("=== My inventory ===");
-//
-//        for (int i = start; i < end; i++) {
-//            Item item = items.get(i);
-//
-//            System.out.printf(
-//                    "%d) %s    %s%n",
-//                    i - start + 1,
-//                    item.getName(),
-//                    item.getStatus()
-//                            .name()
-//                            .toLowerCase()
-//            );
-//        }
-//    }
+        int page = 0;
 
-//    private static void showItemDetails(
-//            Scanner scanner,
-//            Item item,
-//            User owner,
-//            ItemService itemService,
-//            RentalService rentalService
-//    ) {
-//        while (true) {
-//            printItemDetails(item, owner);
-//
-//            System.out.println();
-//
-//            if (item.getStatus() == ItemStatus.AVAILABLE
-//                    || item.getStatus() == ItemStatus.RENTED) {
-//                System.out.println("1) Delist");
-//            } else {
-//                System.out.println("1) Relist");
-//            }
-//
-//            System.out.println("2) Back to list");
-//            System.out.print("> ");
-//
-//            String choice = scanner.nextLine().trim();
-//
-//            if (choice.equals("2")
-//                    || choice.equalsIgnoreCase("B")) {
-//                return;
-//            }
-//
-//            if (!choice.equals("1")) {
-//                System.out.println("Invalid option.");
-//                continue;
-//            }
-//
-//            changeItemStatus(
-//                    item,
-//                    itemService
-//            );
-//        }
-//    }
+        while (true) {
+            int start = page * PAGE_SIZE;
+            int end = Math.min(
+                    start + PAGE_SIZE,
+                    items.size()
+            );
+
+            printInventoryPage(items, start, end);
+
+            String choice = readPaginationChoice(
+                    input,
+                    page,
+                    end,
+                    items.size()
+            );
+
+            if (choice.equals("B")) {
+                return;
+            }
+
+            if (choice.equals("N") && end < items.size()) {
+                page++;
+                continue;
+            }
+
+            if (choice.equals("P") && page > 0) {
+                page--;
+                continue;
+            }
+
+            Integer selected = parseSelection(choice);
+
+            if (selected != null && selected >= 1
+                    && selected <= end - start) {
+
+                Item item = items.get(
+                        start + selected - 1
+                );
+
+                showItemDetails(
+                        input,
+                        item,
+                        owner,
+                        itemService,
+                        rentalService
+                );
+
+                items =
+                        itemService.getInventory(
+                                owner.getId()
+                        );
+
+                if (items.isEmpty()) {
+                    printEmptyInventory();
+                    return;
+                }
+
+                if (page * PAGE_SIZE >= items.size()) {
+                    page = Math.max(
+                            0,
+                            (items.size() - 1) / PAGE_SIZE
+                    );
+                }
+
+                continue;
+            }
+
+            System.out.println("Invalid option.");
+        }
+    }
+
+    private void printEmptyInventory() {
+        System.out.println();
+        System.out.println("=== My inventory ===");
+        System.out.println("No items found.");
+    }
+
+    private void printInventoryPage(
+            List<Item> items,
+            int start,
+            int end
+    ) {
+        System.out.println();
+        System.out.println("=== My inventory ===");
+
+        for (int i = start; i < end; i++) {
+            Item item = items.get(i);
+
+            System.out.printf(
+                    "%d) %s    %s%n",
+                    i - start + 1,
+                    item.name(),
+                    item.status()
+                            .name()
+                            .toLowerCase()
+            );
+        }
+    }
+
+    private static void showItemDetails(
+            Scanner scanner,
+            Item item,
+            User owner,
+            ItemService itemService,
+            RentalService rentalService
+    ) {
+        while (true) {
+            printItemDetails(item, owner);
+
+            System.out.println();
+
+            if (item.getStatus() == ItemStatus.AVAILABLE
+                    || item.getStatus() == ItemStatus.RENTED) {
+                System.out.println("1) Delist");
+            } else {
+                System.out.println("1) Relist");
+            }
+
+            System.out.println("2) Back to list");
+            System.out.print("> ");
+
+            String choice = scanner.nextLine().trim();
+
+            if (choice.equals("2")
+                    || choice.equalsIgnoreCase("B")) {
+                return;
+            }
+
+            if (!choice.equals("1")) {
+                System.out.println("Invalid option.");
+                continue;
+            }
+
+            changeItemStatus(
+                    item,
+                    itemService
+            );
+        }
+    }
 
 //    private static void printItemDetails(
 //            Item item,

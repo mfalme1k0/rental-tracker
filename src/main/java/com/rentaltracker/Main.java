@@ -1,8 +1,14 @@
 package com.rentaltracker;
 
 import com.rentaltracker.infrastructure.DatabaseManager;
+import com.rentaltracker.repository.ItemRepository;
+import com.rentaltracker.repository.RentalRepository;
+import com.rentaltracker.repository.Transactor;
 import com.rentaltracker.repository.UserRepository;
+import com.rentaltracker.repository.sqlite.SQLiteItemRepository;
+import com.rentaltracker.repository.sqlite.SQLiteRentalRepository;
 import com.rentaltracker.repository.sqlite.SQLiteUserRepository;
+import com.rentaltracker.service.ItemService;
 import com.rentaltracker.service.UserService;
 import com.rentaltracker.transport.Transport;
 
@@ -30,7 +36,14 @@ public final class Main {
         UserRepository userRepository = new SQLiteUserRepository(databaseManager);
         UserService userService = new UserService(userRepository);
 
-        Transport transport = new Transport(userService);
+        ItemRepository itemRepository = new SQLiteItemRepository(databaseManager);
+        RentalRepository rentalRepository = new SQLiteRentalRepository(databaseManager);
+        Transactor transactor = new FakeTransactor();
+
+
+        ItemService itemService = new ItemService(itemRepository, rentalRepository, userRepository);
+
+        Transport transport = new Transport(userService, itemService);
         transport.start();
 
 

@@ -18,7 +18,11 @@ Database access is handled through JDBC repositories in:
 src/main/java/com/rentaltracker/repository/sqlite/
 ```
 
-Connections are created by `DatabaseManager`.
+Connections are created and configured by `DatabaseManager`.
+
+The database location is supplied to `DatabaseManager` as a `java.nio.file.Path`. The JDBC URL is derived internally from that path using the SQLite JDBC format.
+
+`Main` is responsible for determining the configured database path and passing it to `DatabaseManager`. CLI argument parsing does not belong in the persistence layer.
 
 SQLite foreign-key enforcement is explicitly enabled for every database connection.
 
@@ -74,10 +78,10 @@ The `users` table stores users of the application.
 
 ```sql
 CREATE TABLE users (
-    id INTEGER PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL
-        DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                       id INTEGER PRIMARY KEY,
+                       username TEXT NOT NULL UNIQUE,
+                       created_at TEXT NOT NULL
+                           DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 ```
 
@@ -119,23 +123,23 @@ The `listed_items` table stores items that users have listed for rental.
 
 ```sql
 CREATE TABLE listed_items (
-    id INTEGER PRIMARY KEY,
-    owner_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    cost_per_day TEXT NOT NULL CHECK (
-        cost_per_day NOT GLOB '*[^0-9.]*'
-        AND length(cost_per_day) > 0
-        AND length(cost_per_day)
-            - length(replace(cost_per_day, '.', '')) <= 1
-        AND substr(cost_per_day, 1, 1) GLOB '[0-9]'
-        AND substr(cost_per_day, -1, 1) GLOB '[0-9]'
-        AND replace(
-            replace(cost_per_day, '0', ''),
-            '.',
-            ''
-        ) <> ''
-    ),
+                              id INTEGER PRIMARY KEY,
+                              owner_id INTEGER NOT NULL,
+                              name TEXT NOT NULL,
+                              description TEXT,
+                              cost_per_day TEXT NOT NULL CHECK (
+                                  cost_per_day NOT GLOB '*[^0-9.]*'
+                                  AND length(cost_per_day) > 0
+                                  AND length(cost_per_day)
+                                  - length(replace(cost_per_day, '.', '')) <= 1
+                                  AND substr(cost_per_day, 1, 1) GLOB '[0-9]'
+                                  AND substr(cost_per_day, -1, 1) GLOB '[0-9]'
+                                  AND replace(
+                                  replace(cost_per_day, '0', ''),
+                                  '.',
+                                  ''
+                                  ) <> ''
+),
     status TEXT NOT NULL CHECK (
         status IN ('available', 'rented', 'unlisted')
     ),
@@ -220,24 +224,24 @@ The `rentals` table stores rental transactions and rental history.
 
 ```sql
 CREATE TABLE rentals (
-    id INTEGER PRIMARY KEY,
-    item_id INTEGER NOT NULL,
-    renter_id INTEGER NOT NULL,
-    start_time TEXT NOT NULL,
-    end_time TEXT NOT NULL,
-    returned_at TEXT,
-    status TEXT NOT NULL CHECK (
-        status IN ('active', 'closed')
-    ),
-    CHECK (end_time > start_time),
+                         id INTEGER PRIMARY KEY,
+                         item_id INTEGER NOT NULL,
+                         renter_id INTEGER NOT NULL,
+                         start_time TEXT NOT NULL,
+                         end_time TEXT NOT NULL,
+                         returned_at TEXT,
+                         status TEXT NOT NULL CHECK (
+                             status IN ('active', 'closed')
+                             ),
+                         CHECK (end_time > start_time),
 
-    FOREIGN KEY (item_id)
-        REFERENCES listed_items(id)
-        ON DELETE RESTRICT,
+                         FOREIGN KEY (item_id)
+                             REFERENCES listed_items(id)
+                             ON DELETE RESTRICT,
 
-    FOREIGN KEY (renter_id)
-        REFERENCES users(id)
-        ON DELETE RESTRICT
+                         FOREIGN KEY (renter_id)
+                             REFERENCES users(id)
+                             ON DELETE RESTRICT
 );
 ```
 
@@ -312,8 +316,8 @@ The database contains a partial unique index:
 
 ```sql
 CREATE UNIQUE INDEX idx_rentals_one_active_per_item
-ON rentals(item_id)
-WHERE status = 'active';
+    ON rentals(item_id)
+    WHERE status = 'active';
 ```
 
 This enforces the rule that an item can have at most one active rental at a time.
@@ -460,13 +464,16 @@ The database schema is applied by `DatabaseManager.initialize()`.
 The initialization process is:
 
 ```text
-DatabaseManager.initialize()
+Configured database Path
         │
         ▼
-getConnection()
+DatabaseManager
         │
         ▼
-PRAGMA foreign_keys = ON
+Create SQLite connection
+        │
+        ▼
+Enable PRAGMA foreign_keys = ON
         │
         ▼
 Load /schema.sql from the classpath
@@ -486,6 +493,8 @@ DatabaseManager.class.getResourceAsStream("/schema.sql")
 
 The SQL is read as UTF-8 and executed against the SQLite connection.
 
+`DatabaseManager` creates the connection required for initialization and closes it when initialization completes.
+
 Foreign-key enforcement is explicitly enabled whenever a connection is created:
 
 ```sql
@@ -496,7 +505,125 @@ This is necessary because SQLite foreign-key enforcement must be enabled for eac
 
 ---
 
-## 11. Seed Database
+## 11. Database Configuration
+
+The database location is configurable.
+
+`DatabaseManager` receives the database location as a `java.nio.file.Path`:
+
+```java
+DatabaseManager databaseManager =
+        new DatabaseManager(databasePath);
+```
+
+The JDBC URL is derived internally by `DatabaseManager`:
+
+```java
+String databaseUrl = "jdbc:sqlite:" + databasePath;
+```
+
+Therefore, callers do not need to construct SQLite JDBC URLs directly.
+
+The intended configuration flow is:
+
+```text
+CLI configuration
+       │
+       ▼
+Main
+       │
+       ▼
+Path databasePath
+       │
+       ▼
+DatabaseManager(databasePath)
+       │
+       ▼
+jdbc:sqlite:<databasePath>
+       │
+       ▼
+SQLite database
+```
+
+`Main` owns application configuration and CLI argument parsing.
+
+`DatabaseManager` owns SQLite connection creation and configuration.
+
+Repositories do not receive the database path or JDBC URL directly. They obtain connections through `DatabaseManager`.
+
+This keeps CLI concerns separate from persistence concerns while allowing the database location to be changed without modifying the persistence implementation.
+
+---
+
+## 12. Connection and Transaction Lifecycle
+
+`DatabaseManager` does not maintain a single application-wide database connection.
+
+For normal repository operations:
+
+```text
+Repository method
+      │
+      ▼
+DatabaseManager.getConnection()
+      │
+      ▼
+Perform SQL operation
+      │
+      ▼
+DatabaseManager.releaseConnection()
+```
+
+The connection is released after the repository operation completes.
+
+If the operation is not running inside a transaction, the repository obtains its own connection and releases it when the operation finishes.
+
+For operations executed inside a transaction, the transaction owns the connection:
+
+```text
+Service
+   │
+   ▼
+Transactor.inTransaction(...)
+   │
+   ▼
+DatabaseManager.beginTransaction()
+   │
+   ▼
+Transaction-owned connection
+   │
+   ├── Repository A
+   │
+   ├── Repository B
+   │
+   └── Repository C
+   │
+   ▼
+Commit or rollback
+   │
+   ▼
+Close transaction connection
+```
+
+Repositories participating in the transaction reuse the same connection.
+
+Repository methods must not close the transaction-owned connection.
+
+`DatabaseManager.releaseConnection()` therefore releases normal connections while leaving the active transaction connection open until the transaction finishes.
+
+Repositories do not commit or roll back transactions themselves.
+
+Transaction boundaries are owned by the service layer through the `Transactor` interface.
+
+A successful transaction is committed.
+
+If a `RuntimeException` is thrown during the transaction, the transaction is rolled back and the exception is rethrown.
+
+Nested transaction calls join the existing transaction rather than creating a second transaction.
+
+---
+
+## 13. Seed Database
 
 The development seed database is located at:
 
@@ -543,9 +670,53 @@ The seeded database is development/demo data.
 
 ---
 
-## 12. ER Diagram
+## 14. Testing the Persistence Layer
 
-The visual ER diagram is stored next to this document:
+Persistence tests use real SQLite databases rather than mocked database connections.
+
+Each test should use an isolated temporary database so that tests do not depend on data left behind by other tests.
+
+The general test setup is:
+
+```text
+Test
+  │
+  ▼
+Temporary database path
+  │
+  ▼
+DatabaseManager
+  │
+  ▼
+initialize()
+  │
+  ▼
+Real SQLite database
+  │
+  ▼
+Repository
+```
+
+Tests should construct the data they need through the repository layer rather than depending on a shared pre-populated database.
+
+Transaction behaviour is tested using real SQLite databases.
+
+The transaction tests cover:
+
+* successful transactions being committed
+* `RuntimeException` causing rollback
+* nested transactions joining the outer transaction
+* failures in nested transactions causing the outer transaction to roll back
+
+Persistence tests should remain independent from the CLI and `Main`.
+
+This allows the persistence layer to be tested and verified before the application composition root is wired.
+
+---
+
+## 15. ER Diagram Reference
+
+The visual ER diagram is stored at:
 
 ```text
 docs/er-diagram.png

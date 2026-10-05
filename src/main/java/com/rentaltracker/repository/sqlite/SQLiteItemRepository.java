@@ -51,8 +51,8 @@ public class SQLiteItemRepository implements ItemRepository {
                 FROM listed_items
                 WHERE id = ?
                 """;
-
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement insertStatement = connection.prepareStatement(
                      insertSql,
                      Statement.RETURN_GENERATED_KEYS)) {
@@ -96,6 +96,9 @@ public class SQLiteItemRepository implements ItemRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -113,7 +116,8 @@ public class SQLiteItemRepository implements ItemRepository {
             WHERE id = ?
             """;
 
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setLong(1, id);
@@ -128,6 +132,9 @@ public class SQLiteItemRepository implements ItemRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
 
@@ -156,7 +163,8 @@ public class SQLiteItemRepository implements ItemRepository {
             ORDER BY id ASC
             """;
 
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setLong(1, ownerId);
@@ -173,6 +181,9 @@ public class SQLiteItemRepository implements ItemRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
 
@@ -192,8 +203,8 @@ public class SQLiteItemRepository implements ItemRepository {
               AND status = ?
             ORDER BY id ASC
             """;
-
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setLong(1, ownerId);
@@ -212,6 +223,9 @@ public class SQLiteItemRepository implements ItemRepository {
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
         }
+        finally {
+            databaseManager.releaseConnection(connection);
+        }
     }
 
     @Override
@@ -221,8 +235,8 @@ public class SQLiteItemRepository implements ItemRepository {
             SET status = ?
             WHERE id = ?
             """;
-
-        try (Connection connection = databaseManager.getConnection();
+        Connection connection = databaseManager.getConnection();
+        try (
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setString(1, status.dbValue());
@@ -238,6 +252,9 @@ public class SQLiteItemRepository implements ItemRepository {
 
         } catch (SQLException e) {
             throw SQLiteExceptionTranslator.translate(e);
+        }
+        finally {
+            databaseManager.releaseConnection(connection);
         }
     }
 

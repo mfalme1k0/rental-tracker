@@ -2,20 +2,17 @@ package com.rentaltracker.transport;
 
 import com.rentaltracker.domain.User;
 import com.rentaltracker.exception.BusinessRuleException;
-import com.rentaltracker.exception.ValidationException;
 import com.rentaltracker.service.UserService;
 
 import com.rentaltracker.domain.*;
 import com.rentaltracker.service.ItemService;
 import com.rentaltracker.service.RentalService;
-import com.rentaltracker.service.UserService;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
-import java.util.Scanner;
 public class Transport {
 
     private static final int PAGE_SIZE = 5;
@@ -145,13 +142,8 @@ public class Transport {
                 case "1" -> listItem(owner);
                 case "2" -> viewInventory(owner);
                 case "3" -> recordRental(owner);
-//
-//                case "4" -> confirmReturn(
-//                        scanner,
-//                        owner,
-//                        rentalService
-//                );
-//
+                case "4" -> confirmReturn(owner);
+
 //                case "5" -> viewRentalHistory(
 //                        owner,
 //                        rentalService
@@ -496,208 +488,150 @@ public class Transport {
         }
     }
 
-//    private static void confirmReturn(
-//            Scanner scanner,
-//            User owner,
-//            RentalService rentalService
-//    ) {
-//        List<Rental> rentals =
-//                rentalService.getActiveRentals(
-//                        owner.getId()
-//                );
-//
-//        if (rentals.isEmpty()) {
-//            System.out.println();
-//            System.out.println("No active rentals.");
-//            return;
-//        }
-//
-//        int page = 0;
-//
-//        while (true) {
-//            int start = page * PAGE_SIZE;
-//            int end = Math.min(
-//                    start + PAGE_SIZE,
-//                    rentals.size()
-//            );
-//
-//            printRentalPage(
-//                    rentals,
-//                    start,
-//                    end,
-//                    rentalService
-//            );
-//
-//            String choice = readPaginationChoice(
-//                    scanner,
-//                    page,
-//                    end,
-//                    rentals.size()
-//            );
-//
-//            if (choice.equals("B")) {
-//                return;
-//            }
-//
-//            if (choice.equals("N")
-//                    && end < rentals.size()) {
-//                page++;
-//                continue;
-//            }
-//
-//            if (choice.equals("P")
-//                    && page > 0) {
-//                page--;
-//                continue;
-//            }
-//
-//            Integer selected = parseSelection(choice);
-//
-//            if (selected != null
-//                    && selected >= 1
-//                    && selected <= end - start) {
-//
-//                Rental rental = rentals.get(
-//                        start + selected - 1
-//                );
-//
-//                showRentalDetails(
-//                        scanner,
-//                        rental,
-//                        rentalService
-//                );
-//
-//                rentals =
-//                        rentalService.getActiveRentals(
-//                                owner.getId()
-//                        );
-//
-//                if (rentals.isEmpty()) {
-//                    return;
-//                }
-//
-//                if (page * PAGE_SIZE >= rentals.size()) {
-//                    page = Math.max(
-//                            0,
-//                            (rentals.size() - 1) / PAGE_SIZE
-//                    );
-//                }
-//
-//                continue;
-//            }
-//
-//            System.out.println("Invalid option.");
-//        }
-//    }
+    private void confirmReturn(User owner) {
 
-//    private static void printRentalPage(
-//            List<Rental> rentals,
-//            int start,
-//            int end,
-//            RentalService rentalService
-//    ) {
-//        System.out.println();
-//        System.out.println("=== Confirm a return ===");
-//
-//        for (int i = start; i < end; i++) {
-//            Rental rental = rentals.get(i);
-//
+        List<RentalDetails> rentals = rentalService.getActiveRentals(owner.id());
+
+        if (rentals.isEmpty()) {
+            System.out.println();
+            System.out.println("No active rentals.");
+            return;
+        }
+
+        int page = 0;
+
+        while (true) {
+            int start = page * PAGE_SIZE;
+            int end = Math.min(
+                    start + PAGE_SIZE,
+                    rentals.size()
+            );
+
+            printRentalReturnPage(rentals, start, end);
+
+            String choice = readPaginationChoice(
+                    page,
+                    end,
+                    rentals.size()
+            );
+
+            if (choice.equals("B")) {
+                return;
+            }
+
+            if (choice.equals("N") && end < rentals.size()) {
+                page++;
+                continue;
+            }
+
+            if (choice.equals("P") && page > 0) {
+                page--;
+                continue;
+            }
+
+            Integer selected = parseSelection(choice);
+
+            if (selected != null
+                    && selected >= 1
+                    && selected <= end - start) {
+
+                RentalDetails rentalDetails = rentals.get(start + selected - 1);
+
+                showRentalDetails(rentalDetails);
+
+                rentals = rentalService.getActiveRentals(owner.id());
+
+                if (rentals.isEmpty()) {
+                    return;
+                }
+
+                if (page * PAGE_SIZE >= rentals.size()) {
+                    page = Math.max(0, (rentals.size() - 1) / PAGE_SIZE);
+                }
+
+                continue;
+            }
+
+            System.out.println("Invalid option.");
+        }
+    }
+
+    private void printRentalReturnPage(
+            List<RentalDetails> rentals,
+            int start,
+            int end) {
+
+        System.out.println();
+        System.out.println("=== Confirm a return ===");
+
+        for (int i = start; i < end; i++) {
+            RentalDetails rentalDetails = rentals.get(i);
+
 //            Item item = rentalService.getItem(rental);
 //            User renter = rentalService.getRenter(rental);
-//
-//            System.out.printf(
-//                    "%d) %-20s %s%n",
-//                    i - start + 1,
-//                    item.getName(),
-//                    renter.getUsername()
-//            );
-//        }
-//    }
 
-//    private static void showRentalDetails(
-//            Scanner scanner,
-//            Rental rental,
-//            RentalService rentalService
-//    ) {
-//        Item item = rentalService.getItem(rental);
-//        User renter = rentalService.getRenter(rental);
-//
-//        while (true) {
-//            printRentalDetails(
-//                    rental,
-//                    item,
-//                    renter
-//            );
-//
-//            if (rental.getStatus() == RentalStatus.ACTIVE) {
-//                System.out.println(
-//                        "1) Confirm return"
-//                );
-//            }
-//
-//            System.out.println("2) Back to list");
-//            System.out.print("> ");
-//
-//            String choice = scanner.nextLine().trim();
-//
-//            if (choice.equals("2")
-//                    || choice.equalsIgnoreCase("B")) {
-//                return;
-//            }
-//
-//            if (choice.equals("1")
-//                    && rental.getStatus()
-//                    == RentalStatus.ACTIVE) {
-//
-//                try {
-//                    rentalService.confirmReturn(
-//                            item,
-//                            rental
-//                    );
-//
-//                    System.out.println("Return confirmed successfully.");
-//
-//                    return;
-//
-//                } catch (IllegalStateException e) {
-//                    System.out.println(e.getMessage());
-//                }
-//
-//                continue;
-//            }
-//
-//            System.out.println("Invalid option.");
-//        }
-//    }
+            System.out.printf(
+                    "%d) %-20s %s%n",
+                    i - start + 1,
+                    rentalDetails.itemName(),
+                    rentalDetails.renterUsername()
+            );
+        }
+    }
 
-//    private static void printRentalDetails(
-//            Rental rental,
-//            Item item,
-//            User renter
-//    ) {
-//        System.out.println();
-//        System.out.println(
-//                "=== Rental " + rental.getId() + " ==="
-//        );
-//        System.out.println(
-//                "item           " + item.getName()
-//        );
-//        System.out.println(
-//                "renter         " + renter.getUsername()
-//        );
-//        System.out.println(
-//                "start time     " + rental.getStartTime()
-//        );
-//        System.out.println(
-//                "end time       " + rental.getEndTime()
-//        );
-//        System.out.println(
-//                "status         " +
-//                        rental.getStatus()
-//                                .name()
-//                                .toLowerCase()
-//        );
-//    }
+    private void showRentalDetails(RentalDetails rentalDetails) {
+        Rental rental = rentalDetails.rental();
+
+        while (true) {
+            printRentalDetails(rentalDetails);
+
+            System.out.println();
+
+            if (rental.status() == RentalStatus.ACTIVE) {
+                System.out.println("1) Confirm return");
+            }
+
+            System.out.println("2) Back to list");
+            System.out.print("> ");
+
+            String choice = input.nextLine().trim();
+
+            if (choice.equals("2") || choice.equalsIgnoreCase("B")) {
+                return;
+            }
+
+            if (choice.equals("1") && rental.status() == RentalStatus.ACTIVE) {
+
+                try {
+                    rentalService.confirmReturn(rental.id());
+
+                    System.out.println("Return confirmed successfully.");
+
+                    return;
+
+                } catch (BusinessRuleException e) {
+                    System.out.println(e.getMessage());
+                }
+
+                continue;
+            }
+
+            System.out.println("Invalid option.");
+        }
+    }
+
+    private void printRentalDetails(RentalDetails rentalDetails) {
+
+        Rental rental = rentalDetails.rental();
+
+        System.out.println();
+        System.out.println("=== Rental " + rental.id() + " ===");
+        System.out.println("item           " + rentalDetails.itemName());
+        System.out.println("renter         " + rentalDetails.renterUsername());
+        System.out.println("start time     " + rental.startTime());
+        System.out.println("end time       " + rental.endTime());
+        System.out.println("status         " + rental.status().name().toLowerCase());
+    }
 
 //    private static void viewRentalHistory(
 //            User owner,

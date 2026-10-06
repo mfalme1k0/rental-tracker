@@ -33,7 +33,7 @@ public final class Main {
     private Main() {}
 
     public static void main(String[] args) {
-        System.out.println("Rental tracker: service layer ready, waiting on database and CLI branches to wire up.");
+        System.out.println("Rental Tracker");
 
         DatabaseManager databaseManager = new DatabaseManager(DATABASE_PATH);
         databaseManager.initialize();
@@ -66,6 +66,7 @@ public final class Main {
                 itemService,
                 rentalService
         );
+
         transport.start();
     }
 }

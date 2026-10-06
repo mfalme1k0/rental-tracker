@@ -29,6 +29,8 @@ public class Transport {
         this.input = new Scanner(System.in);
     }
 
+//    Starts the application by determining whether this is the first launch
+//    If not, then starts the main menu for the owner already existing in DB.
     public void start() {
         Optional<User> owner = userService.findOwner();
 
@@ -43,6 +45,7 @@ public class Transport {
         runMenu(currentOwner);
     }
 
+//   Handles the first launch by asking for the owner's username, then registering them.
     public User firstLaunch() {
         System.out.print("Enter your username: ");
         String username = input.nextLine().trim().toLowerCase();
@@ -54,13 +57,13 @@ public class Transport {
         return owner;
     }
 
+//  Handles subsequent launches where user was already registered
     private User subsequentRuns(User user) {
         System.out.println("Welcome back, " + user.username() + "!");
-
-        // Main menu will go here later.
         return user;
     }
 
+//    Displays the application's main menu options.
     private void printMenu() {
         System.out.println();
         System.out.println("=== Rental tracker ===");
@@ -68,68 +71,11 @@ public class Transport {
         System.out.println("2) View my inventory");
         System.out.println("3) Record a rental");
         System.out.println("4) Confirm a return");
-//        System.out.println("5) View rental history");
         System.out.println("5) Exit");
         System.out.print("> ");
     }
 
-
-    //        DatabaseInitializer.initialize();
-//
-//        try (Scanner scanner = new Scanner(System.in)) {
-//            UserRepositoryImpl userRepository =
-//                    new UserRepositoryImpl();
-//
-//            ItemRepositoryImpl itemRepository =
-//                    new ItemRepositoryImpl();
-//
-//            RentalRepositoryImpl rentalRepository =
-//                    new RentalRepositoryImpl();
-//
-//            UserService userService =
-//                    new UserService(userRepository);
-//
-//            ItemService itemService =
-//                    new ItemService(itemRepository);
-//
-//            RentalService rentalService =
-//                    new RentalService(
-//                            rentalRepository,
-//                            itemRepository,
-//                            userRepository
-//                    );
-//
-//            User owner = getOwner(userService, scanner);
-//
-//            runMenu(
-//                    scanner,
-//                    owner,
-//                    itemService,
-//                    rentalService
-//            );
-//        }
-//}
-
-//    private static User getOwner(
-//            UserService userService,
-//            Scanner scanner) {
-//
-//        if (userService.hasOwner()) {
-//            return userService.getOwner();
-//        }
-//
-//        System.out.print("Enter your username: ");
-//        String username = scanner.nextLine().trim();
-//
-//        User owner = userService.createOwner(username);
-//
-//        System.out.println(
-//                "Welcome, " + owner.getUsername() + "!"
-//        );
-//
-//        return owner;
-//    }
-
+//    Keeps the application running and routes each menu choice to the corresponding method operation.
     private void runMenu(User owner) {
         boolean running = true;
 
@@ -143,12 +89,6 @@ public class Transport {
                 case "2" -> viewInventory(owner);
                 case "3" -> recordRental(owner);
                 case "4" -> confirmReturn(owner);
-
-//                case "5" -> viewRentalHistory(
-//                        owner,
-//                        rentalService
-//                );
-
                 case "5" -> {
                     running = false;
                     System.out.println("Goodbye.");
@@ -159,6 +99,7 @@ public class Transport {
         }
     }
 
+//    Collects item details from the owner and asks the service layer to create the listing.
     private void listItem(User owner) {
         System.out.println();
         System.out.println("=== List an item ===");
@@ -196,12 +137,8 @@ public class Transport {
         }
     }
 
-    private void viewInventory(
-//            Scanner scanner,
-            User owner
-//            ,ItemService itemService,
-//            RentalService rentalService
-    ) {
+//    Displays the owner's inventory with pagination and allows the owner to open an individual item's details.
+    private void viewInventory(User owner) {
         List<Item> items = itemService.getInventory(owner.id());
 
         if (items.isEmpty()) {
@@ -242,21 +179,15 @@ public class Transport {
 
             Integer selected = parseSelection(choice);
 
-            if (selected != null && selected >= 1
+            if (selected != null
+                    && selected >= 1
                     && selected <= end - start) {
 
-                Item item = items.get(
-                        start + selected - 1
-                );
+                Item item = items.get(start + selected - 1);
 
-                showItemDetails(
-//                        input,
-                        item,
-                        owner
-//                        , itemService,
-//                        rentalService
-                );
+                showItemDetails(item, owner);
 
+                // Refresh the inventory in case the item's status changed.
                 items = itemService.getInventory(owner.id());
 
                 if (items.isEmpty()) {
@@ -278,17 +209,19 @@ public class Transport {
         }
     }
 
+//    Displays the inventory's empty state when the owner has no items.
     private void printEmptyInventory() {
         System.out.println();
         System.out.println("=== My inventory ===");
         System.out.println("No items found.");
     }
 
+//    Displays one page of inventory items with their current status.
     private void printInventoryPage(
             List<Item> items,
             int start,
-            int end
-    ) {
+            int end) {
+
         System.out.println();
         System.out.println("=== My inventory ===");
 
@@ -296,7 +229,7 @@ public class Transport {
             Item item = items.get(i);
 
             System.out.printf(
-                    "%d) %s    %s%n",
+                    "%d) %s - %s%n",
                     i - start + 1,
                     item.name(),
                     item.status()
@@ -306,12 +239,8 @@ public class Transport {
         }
     }
 
-    private void showItemDetails(
-            Item item,
-            User owner
-//            , ItemService itemService,
-//            RentalService rentalService
-    ) {
+//    Displays an item's details and lets the owner delist or relist it.
+    private void showItemDetails(Item item, User owner) {
         while (true) {
             printItemDetails(item, owner);
 
@@ -341,10 +270,8 @@ public class Transport {
         }
     }
 
-    private void printItemDetails(
-            Item item,
-            User owner) {
-
+//    Prints the detailed information for a single inventory item.
+    private void printItemDetails(Item item, User owner) {
         System.out.println();
         System.out.println("=== " + item.name() + " ===");
         System.out.println("description    " + item.description());
@@ -354,6 +281,7 @@ public class Transport {
         System.out.println("listing date   " + item.createdAt());
     }
 
+//    Requests the appropriate status change from the service layer and returns the updated item for display.
     private Item changeItemStatus(Item item) {
         try {
             if (item.status() == ItemStatus.AVAILABLE || item.status() == ItemStatus.RENTED) {
@@ -373,12 +301,13 @@ public class Transport {
             System.out.println("This item cannot be changed here.");
             return item;
 
-        } catch (IllegalStateException | BusinessRuleException e) {
+        } catch (BusinessRuleException e) {
             System.out.println(e.getMessage());
             return item;
         }
     }
 
+//    Displays the owner's available items with pagination and lets them select an item to start a rental.
     private void recordRental(User owner) {
         List<Item> items = itemService.getAvailableItems(owner.id());
 
@@ -435,7 +364,8 @@ public class Transport {
         }
     }
 
-    private static void printRentalItemPage(
+//   Displays one page of items that are currently available for rental.
+    private void printRentalItemPage(
             List<Item> items,
             int start,
             int end) {
@@ -447,7 +377,7 @@ public class Transport {
             Item item = items.get(i);
 
             System.out.printf(
-                    "%d) %-20s %.2f/day%n",
+                    "%d) %s - %.2f/day%n",
                     i - start + 1,
                     item.name(),
                     item.costPerDay()
@@ -455,6 +385,7 @@ public class Transport {
         }
     }
 
+//    Collects renter's name and rental duration details, then asks the rental service to create the rental.
     private void createRental(Item item) {
         System.out.print("Renter username: ");
         String renterUsername = input.nextLine().trim();
@@ -488,6 +419,7 @@ public class Transport {
         }
     }
 
+//   Displays the owner's active rentals with pagination and lets them select a rental to view and confirm its return.
     private void confirmReturn(User owner) {
 
         List<RentalDetails> rentals = rentalService.getActiveRentals(owner.id());
@@ -539,6 +471,7 @@ public class Transport {
 
                 showRentalDetails(rentalDetails);
 
+                // Refresh after a possible return so closed rentals disappear.
                 rentals = rentalService.getActiveRentals(owner.id());
 
                 if (rentals.isEmpty()) {
@@ -556,6 +489,7 @@ public class Transport {
         }
     }
 
+//    Displays one page of active rentals with the item and renter names.
     private void printRentalReturnPage(
             List<RentalDetails> rentals,
             int start,
@@ -567,11 +501,8 @@ public class Transport {
         for (int i = start; i < end; i++) {
             RentalDetails rentalDetails = rentals.get(i);
 
-//            Item item = rentalService.getItem(rental);
-//            User renter = rentalService.getRenter(rental);
-
             System.out.printf(
-                    "%d) %-20s %s%n",
+                    "%d) %s - %s%n",
                     i - start + 1,
                     rentalDetails.itemName(),
                     rentalDetails.renterUsername()
@@ -579,6 +510,7 @@ public class Transport {
         }
     }
 
+//    Displays an active rental's details and allows the owner to confirm the return or go back to the rental list.
     private void showRentalDetails(RentalDetails rentalDetails) {
         Rental rental = rentalDetails.rental();
 
@@ -604,9 +536,7 @@ public class Transport {
 
                 try {
                     rentalService.confirmReturn(rental.id());
-
                     System.out.println("Return confirmed successfully.");
-
                     return;
 
                 } catch (BusinessRuleException e) {
@@ -620,6 +550,7 @@ public class Transport {
         }
     }
 
+//    Prints the details of a rental selected from the active rental list.
     private void printRentalDetails(RentalDetails rentalDetails) {
 
         Rental rental = rentalDetails.rental();
@@ -633,40 +564,7 @@ public class Transport {
         System.out.println("status         " + rental.status().name().toLowerCase());
     }
 
-//    private static void viewRentalHistory(
-//            User owner,
-//            RentalService rentalService
-//    ) {
-//        List<Rental> rentals =
-//                rentalService.getRentalHistory(
-//                        owner.getId()
-//                );
-//
-//        System.out.println();
-//        System.out.println("=== Rental history ===");
-//
-//        if (rentals.isEmpty()) {
-//            System.out.println("No rentals found.");
-//            return;
-//        }
-//
-//        for (Rental rental : rentals) {
-//            Item item = rentalService.getItem(rental);
-//            User renter = rentalService.getRenter(rental);
-//
-//            System.out.printf(
-//                    "Rental %d | Item %s | Renter %s | %s | Ends: %s%n",
-//                    rental.getId(),
-//                    item.getName(),
-//                    renter.getUsername(),
-//                    rental.getStatus()
-//                            .name()
-//                            .toLowerCase(),
-//                    rental.getEndTime()
-//            );
-//        }
-//    }
-
+//    Displays pagination options and reads the user's selection.
     private String readPaginationChoice(int page,
                                         int end,
                                         int totalItems) {
@@ -678,6 +576,7 @@ public class Transport {
                 .toUpperCase();
     }
 
+//    Displays only the pagination controls that are valid for the current page.
     private void printPaginationOptions(
             int page,
             int end,
@@ -697,6 +596,7 @@ public class Transport {
         System.out.print("> ");
     }
 
+//    Converts a user's numeric menu selection into an Integer, returning null when the input is not a valid number.
     private Integer parseSelection(String choice) {
         try {
             return Integer.parseInt(choice);

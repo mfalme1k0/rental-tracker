@@ -7,10 +7,13 @@ import com.rentaltracker.repository.Transactor;
 import com.rentaltracker.repository.UserRepository;
 import com.rentaltracker.repository.sqlite.SQLiteItemRepository;
 import com.rentaltracker.repository.sqlite.SQLiteRentalRepository;
+import com.rentaltracker.repository.sqlite.SQLiteTransactor;
 import com.rentaltracker.repository.sqlite.SQLiteUserRepository;
 import com.rentaltracker.service.ItemService;
 import com.rentaltracker.service.UserService;
 import com.rentaltracker.transport.Transport;
+
+import java.nio.file.Path;
 
 /**
  * Composition root: the ONE place that builds the object graph (DatabaseManager -> repositories -> services ->
@@ -23,14 +26,14 @@ import com.rentaltracker.transport.Transport;
  */
 public final class Main {
 
-    private static final String DATABASE_URL = "jdbc:sqlite:rental-tracker.db";
+    private static final Path DATABASE_PATH = Path.of("rental-tracker.db");
 
     private Main() {}
 
     public static void main(String[] args) {
         System.out.println("Rental tracker: service layer ready, waiting on database and CLI branches to wire up.");
 
-        DatabaseManager databaseManager = new DatabaseManager(DATABASE_URL);
+        DatabaseManager databaseManager = new DatabaseManager(DATABASE_PATH);
         databaseManager.initialize();
 
         UserRepository userRepository = new SQLiteUserRepository(databaseManager);
@@ -38,10 +41,11 @@ public final class Main {
 
         ItemRepository itemRepository = new SQLiteItemRepository(databaseManager);
         RentalRepository rentalRepository = new SQLiteRentalRepository(databaseManager);
-        Transactor transactor = new FakeTransactor();
+        Transactor transactor = new SQLiteTransactor(databaseManager);
 
 
-        ItemService itemService = new ItemService(itemRepository, rentalRepository, userRepository);
+
+        ItemService itemService = new ItemService(itemRepository, rentalRepository, userRepository, transactor);
 
         Transport transport = new Transport(userService, itemService);
         transport.start();

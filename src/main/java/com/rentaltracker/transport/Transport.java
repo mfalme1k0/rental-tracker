@@ -1,6 +1,7 @@
 package com.rentaltracker.transport;
 
 import com.rentaltracker.domain.User;
+import com.rentaltracker.exception.BusinessRuleException;
 import com.rentaltracker.exception.ValidationException;
 import com.rentaltracker.service.UserService;
 
@@ -15,7 +16,6 @@ import java.util.Optional;
 import java.util.Scanner;
 
 import java.util.Scanner;
-
 public class Transport {
 
     private static final int PAGE_SIZE = 5;
@@ -27,13 +27,6 @@ public class Transport {
     public Transport(UserService userService, ItemService itemService) {
         this.userService = userService;
         this.itemService = itemService;
-        this.input = new Scanner(System.in);
-    }
-
-    // Temporary until Transactor Impl is complete
-    public Transport(UserService userService) {
-        this.userService = userService;
-        this.itemService = null;
         this.input = new Scanner(System.in);
     }
 
@@ -152,14 +145,13 @@ public class Transport {
             String choice = input.nextLine().trim();
 
             switch (choice) {
-//                case "1" -> listItem(owner);
+                case "1" -> listItem(owner);
 
-//                case "2" -> viewInventory(
-//                        scanner,
-//                        owner,
-//                        itemService,
+                case "2" -> viewInventory(
+                        owner
+//                        , itemService,
 //                        rentalService
-//                );
+                );
 //
 //                case "3" -> recordRental(
 //                        scanner,
@@ -251,7 +243,6 @@ public class Transport {
             printInventoryPage(items, start, end);
 
             String choice = readPaginationChoice(
-                    input,
                     page,
                     end,
                     items.size()
@@ -281,16 +272,16 @@ public class Transport {
                 );
 
                 showItemDetails(
-                        input,
+//                        input,
                         item,
-                        owner,
-                        itemService,
-                        rentalService
+                        owner
+//                        , itemService,
+//                        rentalService
                 );
 
                 items =
                         itemService.getInventory(
-                                owner.getId()
+                                owner.id()
                         );
 
                 if (items.isEmpty()) {
@@ -340,20 +331,18 @@ public class Transport {
         }
     }
 
-    private static void showItemDetails(
-            Scanner scanner,
+    private void showItemDetails(
             Item item,
-            User owner,
-            ItemService itemService,
-            RentalService rentalService
+            User owner
+//            , ItemService itemService,
+//            RentalService rentalService
     ) {
         while (true) {
             printItemDetails(item, owner);
 
             System.out.println();
 
-            if (item.getStatus() == ItemStatus.AVAILABLE
-                    || item.getStatus() == ItemStatus.RENTED) {
+            if (item.status() == ItemStatus.AVAILABLE || item.status() == ItemStatus.RENTED) {
                 System.out.println("1) Delist");
             } else {
                 System.out.println("1) Relist");
@@ -362,10 +351,9 @@ public class Transport {
             System.out.println("2) Back to list");
             System.out.print("> ");
 
-            String choice = scanner.nextLine().trim();
+            String choice = input.nextLine().trim();
 
-            if (choice.equals("2")
-                    || choice.equalsIgnoreCase("B")) {
+            if (choice.equals("2") || choice.equalsIgnoreCase("B")) {
                 return;
             }
 
@@ -374,74 +362,47 @@ public class Transport {
                 continue;
             }
 
-            changeItemStatus(
-                    item,
-                    itemService
-            );
+            item = changeItemStatus(item);
         }
     }
 
-//    private static void printItemDetails(
-//            Item item,
-//            User owner
-//    ) {
-//        System.out.println();
-//        System.out.println(
-//                "=== " + item.getName() + " ==="
-//        );
-//        System.out.println(
-//                "description    " + item.getDescription()
-//        );
-//        System.out.println(
-//                "cost per day   " + item.getCostPerDay()
-//        );
-//        System.out.println(
-//                "status         " +
-//                        item.getStatus().name().toLowerCase()
-//        );
-//        System.out.println(
-//                "owner          " + owner.getUsername()
-//        );
-//        System.out.println(
-//                "listing date   " + item.getListingDate()
-//        );
-//    }
+    private void printItemDetails(
+            Item item,
+            User owner) {
 
-//    private static void changeItemStatus(
-//            Item item,
-//            ItemService itemService
-//    ) {
-//        try {
-//            if (item.getStatus() == ItemStatus.AVAILABLE
-//                    || item.getStatus() == ItemStatus.RENTED) {
-//
-//                itemService.changeStatus(
-//                        item,
-//                        ItemStatus.UNLISTED
-//                );
-//
-//                System.out.println("Item delisted.");
-//                return;
-//            }
-//
-//            if (item.getStatus() == ItemStatus.UNLISTED) {
-//                itemService.changeStatus(
-//                        item,
-//                        ItemStatus.AVAILABLE
-//                );
-//
-//                System.out.println("Item relisted.");
-//                return;
-//            }
-//
-//            System.out.println(
-//                    "This item cannot be changed here."
-//            );
-//
-//        } catch (IllegalStateException e) {
-//            System.out.println(e.getMessage());
-//        }
-//    }
+        System.out.println();
+        System.out.println("=== " + item.name() + " ===");
+        System.out.println("description    " + item.description());
+        System.out.println("cost per day   " + item.costPerDay());
+        System.out.println("status         " + item.status().name().toLowerCase());
+        System.out.println("owner          " + owner.username());
+        System.out.println("listing date   " + item.createdAt());
+    }
+
+    private Item changeItemStatus(Item item) {
+        try {
+            if (item.status() == ItemStatus.AVAILABLE || item.status() == ItemStatus.RENTED) {
+                Item delistedItem = itemService.delist(item.id());
+
+                System.out.println("Item delisted.");
+                return delistedItem;
+            }
+
+            if (item.status() == ItemStatus.UNLISTED) {
+                Item relistedItem = itemService.relist(item.id());
+
+                System.out.println("Item relisted.");
+                return relistedItem;
+            }
+
+            System.out.println("This item cannot be changed here.");
+            return item;
+
+        } catch (IllegalStateException | BusinessRuleException e) {
+            System.out.println(e.getMessage());
+            return item;
+        }
+    }
 
 //    private static void recordRental(
 //            Scanner scanner,
@@ -825,22 +786,18 @@ public class Transport {
 //        }
 //    }
 
-    private static String readPaginationChoice(Scanner scanner,
-                                               int page,
-                                               int end,
-                                               int totalItems) {
-        printPaginationOptions(
-                page,
-                end,
-                totalItems
-        );
+    private String readPaginationChoice(int page,
+                                        int end,
+                                        int totalItems) {
 
-        return scanner.nextLine()
+        printPaginationOptions(page, end, totalItems);
+
+        return input.nextLine()
                 .trim()
                 .toUpperCase();
     }
 
-    private static void printPaginationOptions(
+    private void printPaginationOptions(
             int page,
             int end,
             int totalItems) {
@@ -859,7 +816,7 @@ public class Transport {
         System.out.print("> ");
     }
 
-    private static Integer parseSelection(String choice) {
+    private Integer parseSelection(String choice) {
         try {
             return Integer.parseInt(choice);
         } catch (NumberFormatException e) {

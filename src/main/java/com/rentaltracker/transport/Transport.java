@@ -22,11 +22,13 @@ public class Transport {
 
     private final UserService userService;
     private final ItemService itemService;
+    private final RentalService rentalService;
     private final Scanner input;
 
-    public Transport(UserService userService, ItemService itemService) {
+    public Transport(UserService userService, ItemService itemService, RentalService rentalService) {
         this.userService = userService;
         this.itemService = itemService;
+        this.rentalService = rentalService;
         this.input = new Scanner(System.in);
     }
 
@@ -131,12 +133,7 @@ public class Transport {
 //        return owner;
 //    }
 
-    private void runMenu(
-//            Scanner scanner,
-            User owner
-//            ,ItemService itemService
-//            , RentalService rentalService
-    ) {
+    private void runMenu(User owner) {
         boolean running = true;
 
         while (running) {
@@ -146,19 +143,8 @@ public class Transport {
 
             switch (choice) {
                 case "1" -> listItem(owner);
-
-                case "2" -> viewInventory(
-                        owner
-//                        , itemService,
-//                        rentalService
-                );
-//
-//                case "3" -> recordRental(
-//                        scanner,
-//                        owner,
-//                        itemService,
-//                        rentalService
-//                );
+                case "2" -> viewInventory(owner);
+                case "3" -> recordRental(owner);
 //
 //                case "4" -> confirmReturn(
 //                        scanner,
@@ -213,7 +199,7 @@ public class Transport {
 
             System.out.println("Item listed successfully.");
 
-        } catch (ValidationException e) {
+        } catch (BusinessRuleException e) {
             System.out.println(e.getMessage());
         }
     }
@@ -279,10 +265,7 @@ public class Transport {
 //                        rentalService
                 );
 
-                items =
-                        itemService.getInventory(
-                                owner.id()
-                        );
+                items = itemService.getInventory(owner.id());
 
                 if (items.isEmpty()) {
                     printEmptyInventory();
@@ -404,150 +387,114 @@ public class Transport {
         }
     }
 
-//    private static void recordRental(
-//            Scanner scanner,
-//            User owner,
-//            ItemService itemService,
-//            RentalService rentalService
-//    ) {
-//        List<Item> items =
-//                itemService.getAvailableItems(
-//                        owner.getId()
-//                );
-//
-//        if (items.isEmpty()) {
-//            System.out.println();
-//            System.out.println("No available items.");
-//            return;
-//        }
-//
-//        int page = 0;
-//
-//        while (true) {
-//            int start = page * PAGE_SIZE;
-//            int end = Math.min(
-//                    start + PAGE_SIZE,
-//                    items.size()
-//            );
-//
-//            printRentalItemPage(
-//                    items,
-//                    start,
-//                    end
-//            );
-//
-//            String choice = readPaginationChoice(
-//                    scanner,
-//                    page,
-//                    end,
-//                    items.size()
-//            );
-//
-//            if (choice.equals("B")) {
-//                return;
-//            }
-//
-//            if (choice.equals("N")
-//                    && end < items.size()) {
-//                page++;
-//                continue;
-//            }
-//
-//            if (choice.equals("P")
-//                    && page > 0) {
-//                page--;
-//                continue;
-//            }
-//
-//            Integer selected = parseSelection(choice);
-//
-//            if (selected != null
-//                    && selected >= 1
-//                    && selected <= end - start) {
-//
-//                Item item = items.get(
-//                        start + selected - 1
-//                );
-//
-//                createRental(
-//                        scanner,
-//                        item,
-//                        rentalService
-//                );
-//
-//                return;
-//            }
-//
-//            System.out.println("Invalid option.");
-//        }
-//    }
+    private void recordRental(User owner) {
+        List<Item> items = itemService.getAvailableItems(owner.id());
 
-//    private static void printRentalItemPage(
-//            List<Item> items,
-//            int start,
-//            int end
-//    ) {
-//        System.out.println();
-//        System.out.println("=== Record a rental ===");
-//
-//        for (int i = start; i < end; i++) {
-//            Item item = items.get(i);
-//
-//            System.out.printf(
-//                    "%d) %-20s %.2f/day%n",
-//                    i - start + 1,
-//                    item.getName(),
-//                    item.getCostPerDay()
-//            );
-//        }
-//    }
+        if (items.isEmpty()) {
+            System.out.println();
+            System.out.println("No available items.");
+            return;
+        }
 
-//    private static void createRental(
-//            Scanner scanner,
-//            Item item,
-//            RentalService rentalService
-//    ) {
-//        System.out.print("Renter username: ");
-//        String renterUsername =
-//                scanner.nextLine().trim();
-//
-//        System.out.print("Duration in days: ");
-//
-//        int durationDays;
-//
-//        try {
-//            durationDays = Integer.parseInt(
-//                    scanner.nextLine().trim()
-//            );
-//        } catch (NumberFormatException e) {
-//            System.out.println("Invalid duration.");
-//            return;
-//        }
-//
-//        try {
-//            Rental rental =
-//                    rentalService.recordRental(
-//                            item,
-//                            renterUsername,
-//                            durationDays
-//                    );
-//
-//            System.out.println();
-//            System.out.println(
-//                    "Rental recorded successfully."
-//            );
-//            System.out.println(
-//                    "Rental ID: " + rental.getId()
-//            );
-//            System.out.println(
-//                    "Ends: " + rental.getEndTime()
-//            );
-//
-//        } catch (IllegalArgumentException
-//                 | IllegalStateException e) {
-//            System.out.println(e.getMessage());
-//        }
-//    }
+        int page = 0;
+
+        while (true) {
+            int start = page * PAGE_SIZE;
+            int end = Math.min(
+                    start + PAGE_SIZE,
+                    items.size()
+            );
+
+            printRentalItemPage(items, start, end);
+
+            String choice = readPaginationChoice(
+                    page,
+                    end,
+                    items.size()
+            );
+
+            if (choice.equals("B")) {
+                return;
+            }
+
+            if (choice.equals("N") && end < items.size()) {
+                page++;
+                continue;
+            }
+
+            if (choice.equals("P") && page > 0) {
+                page--;
+                continue;
+            }
+
+            Integer selected = parseSelection(choice);
+
+            if (selected != null
+                    && selected >= 1
+                    && selected <= end - start) {
+
+                Item item = items.get(start + selected - 1);
+
+                createRental(item);
+                return;
+            }
+
+            System.out.println("Invalid option.");
+        }
+    }
+
+    private static void printRentalItemPage(
+            List<Item> items,
+            int start,
+            int end) {
+
+        System.out.println();
+        System.out.println("=== Record a rental ===");
+
+        for (int i = start; i < end; i++) {
+            Item item = items.get(i);
+
+            System.out.printf(
+                    "%d) %-20s %.2f/day%n",
+                    i - start + 1,
+                    item.name(),
+                    item.costPerDay()
+            );
+        }
+    }
+
+    private void createRental(Item item) {
+        System.out.print("Renter username: ");
+        String renterUsername = input.nextLine().trim();
+
+        System.out.print("Duration in days: ");
+
+        int durationDays;
+
+        try {
+            durationDays = Integer.parseInt(input.nextLine().trim());
+
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid duration.");
+            return;
+        }
+
+        try {
+            Rental rental = rentalService.recordRental(
+                    item.id(),
+                    renterUsername,
+                    durationDays
+            );
+
+            System.out.println();
+            System.out.println("Rental recorded successfully.");
+            System.out.println("Rental ID: " + rental.id());
+            System.out.println("Ends: " + rental.endTime());
+
+        } catch (BusinessRuleException e) {
+            System.out.println(e.getMessage());
+        }
+    }
 
 //    private static void confirmReturn(
 //            Scanner scanner,
@@ -824,5 +771,4 @@ public class Transport {
             return null;
         }
     }
-
 }

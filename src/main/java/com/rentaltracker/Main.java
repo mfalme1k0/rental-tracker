@@ -10,10 +10,12 @@ import com.rentaltracker.repository.sqlite.SQLiteRentalRepository;
 import com.rentaltracker.repository.sqlite.SQLiteTransactor;
 import com.rentaltracker.repository.sqlite.SQLiteUserRepository;
 import com.rentaltracker.service.ItemService;
+import com.rentaltracker.service.RentalService;
 import com.rentaltracker.service.UserService;
 import com.rentaltracker.transport.Transport;
 
 import java.nio.file.Path;
+import java.time.Clock;
 
 /**
  * Composition root: the ONE place that builds the object graph (DatabaseManager -> repositories -> services ->
@@ -43,13 +45,27 @@ public final class Main {
         RentalRepository rentalRepository = new SQLiteRentalRepository(databaseManager);
         Transactor transactor = new SQLiteTransactor(databaseManager);
 
+        ItemService itemService = new ItemService(
+                itemRepository,
+                rentalRepository,
+                userRepository,
+                transactor);
 
+        Clock clock = Clock.systemDefaultZone();
 
-        ItemService itemService = new ItemService(itemRepository, rentalRepository, userRepository, transactor);
+        RentalService rentalService = new RentalService(
+                itemRepository,
+                rentalRepository,
+                userService,
+                transactor,
+                clock
+        );
 
-        Transport transport = new Transport(userService, itemService);
+        Transport transport = new Transport(
+                userService,
+                itemService,
+                rentalService
+        );
         transport.start();
-
-
     }
 }

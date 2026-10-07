@@ -1,13 +1,11 @@
 package com.rentaltracker.infrastructure;
 
+import com.rentaltracker.exception.DatabaseConnectionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -300,5 +298,42 @@ class DatabaseManagerTest {
         databaseManager.initialize();
 
         return databaseManager;
+    }
+
+    @Test
+    void initializeMigratesLegacyCaseSensitiveUsersTable() throws Exception {
+        Path db = tempDir.resolve("legacy.db");
+        try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + db);
+             Statement s = c.createStatement()) {
+            s.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, "
+                    + "created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))");
+            s.execute("INSERT INTO users (username) VALUES ('owner'), ('bob')");
+        }
+
+        DatabaseManager manager = new DatabaseManager(db);
+        manager.initialize();
+
+        try (Connection c = manager.getConnection(); Statement s = c.createStatement()) {
+            assertThrows(SQLException.class,
+                    () -> s.execute("INSERT INTO users (username) VALUES ('BOB')"));
+            try (ResultSet rs = s.executeQuery("SELECT id FROM users WHERE username = 'bob'")) {
+                assertEquals(2, rs.getInt(1));          // ids preserved
+            }
+        }
+        manager.initialize();                            // idempotent: second run is a no-op
+    }
+
+    @Test
+    void initializeRefusesToMigrateWhenCaseDuplicatesExist() throws Exception {
+        Path db = tempDir.resolve("dupes.db");
+        try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + db);
+             Statement s = c.createStatement()) {
+            s.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, "
+                    + "created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))");
+            s.execute("INSERT INTO users (username) VALUES ('mfalme'), ('Mfalme')");
+        }
+
+        assertThrows(DatabaseConnectionException.class,
+                () -> new DatabaseManager(db).initialize());
     }
 }

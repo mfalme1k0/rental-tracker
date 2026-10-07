@@ -336,4 +336,18 @@ class DatabaseManagerTest {
         assertThrows(DatabaseConnectionException.class,
                 () -> new DatabaseManager(db).initialize());
     }
+
+    @Test
+    void triggerRejectsOwnerRentingOwnItem() throws Exception {
+        DatabaseManager manager = createDatabase();
+        try (Connection c = manager.getConnection(); Statement s = c.createStatement()) {
+            s.execute("INSERT INTO users (username) VALUES ('owner')");
+            s.execute("INSERT INTO listed_items (owner_id, name, cost_per_day, status) "
+                    + "VALUES (1, 'ladder', '5', 'available')");
+            SQLException e = assertThrows(SQLException.class, () -> s.execute(
+                    "INSERT INTO rentals (item_id, renter_id, start_time, end_time, status) "
+                            + "VALUES (1, 1, '2026-10-01', '2026-10-02', 'active')"));
+            assertTrue(e.getMessage().contains("owner cannot rent own item"));
+        }
+    }
 }

@@ -208,7 +208,7 @@ public final class DatabaseManager {
 
     private static final int SCHEMA_VERSION = 1;
 
-    // call this in initialize(), right after statement.executeUpdate(schema);
+
     private void migrate(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             int version;

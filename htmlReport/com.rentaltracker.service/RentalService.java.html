@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RentalService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco.exec</a> &gt; <a href="index.source.html" class="el_package">com.rentaltracker.service</a> &gt; <span class="el_source">RentalService.java</span></div><h1>RentalService.java</h1><pre class="source lang-java linenums">package com.rentaltracker.service;
+
+import com.rentaltracker.domain.Item;
+import com.rentaltracker.domain.ItemStatus;
+import com.rentaltracker.domain.Rental;
+import com.rentaltracker.domain.RentalDetails;
+import com.rentaltracker.domain.RentalStatus;
+import com.rentaltracker.domain.User;
+import com.rentaltracker.exception.BusinessRuleException;
+import com.rentaltracker.repository.ItemRepository;
+import com.rentaltracker.repository.RentalRepository;
+import com.rentaltracker.repository.Transactor;
+
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
+
+// Rent and return.
+
+public class RentalService {
+
+    private final ItemRepository items;
+    private final RentalRepository rentals;
+    private final UserService userService;
+    private final Transactor transactor;
+    private final Clock clock;
+
+    public RentalService(ItemRepository items, RentalRepository rentals, UserService userService,
+<span class="fc" id="L30">                         Transactor transactor, Clock clock) {</span>
+<span class="fc" id="L31">        this.items = Objects.requireNonNull(items);</span>
+<span class="fc" id="L32">        this.rentals = Objects.requireNonNull(rentals);</span>
+<span class="fc" id="L33">        this.userService = Objects.requireNonNull(userService);</span>
+<span class="fc" id="L34">        this.transactor = Objects.requireNonNull(transactor);</span>
+<span class="fc" id="L35">        this.clock = Objects.requireNonNull(clock);</span>
+<span class="fc" id="L36">    }</span>
+
+    // Records a rental: resolves or creates the renter, checks the renter is not the owner, moves the item
+    // AVAILABLE -&gt; RENTED, and inserts the rental with end = start + days.
+    public Rental recordRental(long itemId, String renterName, int days) {
+<span class="fc" id="L41">        String cleanRenterName = Validation.requireNonBlank(renterName, &quot;renterName&quot;);</span>
+<span class="fc" id="L42">        int validDays = Validation.requireAtLeastMinimumDays(days);</span>
+
+<span class="fc" id="L44">        return transactor.inTransaction(() -&gt; {</span>
+<span class="fc" id="L45">            Item item = items.getById(itemId);</span>
+<span class="fc" id="L46">            User renter = userService.findOrCreateRenter(cleanRenterName);</span>
+
+            // The owner may not rent their own item. Checked by identity (user id), not by
+            // comparing names, so it still catches the case where the renter types the owner's own username.
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            if (Objects.equals(renter.id(), item.ownerId())) {</span>
+<span class="fc" id="L51">                throw new BusinessRuleException(&quot;The owner of an item cannot rent their own item&quot;);</span>
+            }
+
+<span class="fc" id="L54">            Item rentedItem = item.transitionTo(ItemStatus.RENTED);</span>
+<span class="fc" id="L55">            items.updateStatus(itemId, rentedItem.status());</span>
+
+<span class="fc" id="L57">            LocalDateTime start = LocalDateTime.now(clock);</span>
+<span class="fc" id="L58">            LocalDateTime end = start.plusDays(validDays);</span>
+<span class="fc" id="L59">            return rentals.insert(Rental.newActive(itemId, renter.id(), start, end));</span>
+        });
+    }
+
+    // Active rentals across the owner's items, oldest due date first (the &quot;confirm a return&quot; list).
+    public List&lt;RentalDetails&gt; getActiveRentals(long ownerId) {
+<span class="fc" id="L65">        return rentals.findActiveDetailsByOwnerId(ownerId);</span>
+    }
+
+    // Confirms a return: closes the rental with a return timestamp, and puts the item back to AVAILABLE
+    public Rental confirmReturn(long rentalId) {
+<span class="fc" id="L70">        return transactor.inTransaction(() -&gt; {</span>
+<span class="fc" id="L71">            Rental rental = rentals.getById(rentalId);</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">            if (rental.status() != RentalStatus.ACTIVE) {</span>
+<span class="fc" id="L73">                throw new BusinessRuleException(&quot;Rental &quot; + rentalId + &quot; is not active, it cannot be returned&quot;);</span>
+            }
+
+<span class="fc" id="L76">            LocalDateTime returnedAt = LocalDateTime.now(clock);</span>
+<span class="fc" id="L77">            Rental closed = rental.closedAt(returnedAt);</span>
+<span class="fc" id="L78">            rentals.updateStatus(rentalId, closed.status(), returnedAt);</span>
+
+<span class="fc" id="L80">            Item item = items.getById(rental.itemId());</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">            if (item.status() == ItemStatus.RENTED) {</span>
+<span class="fc" id="L82">                Item available = item.transitionTo(ItemStatus.AVAILABLE);</span>
+<span class="fc" id="L83">                items.updateStatus(item.id(), available.status());</span>
+            }
+            // else: item is UNLISTED (delisted while out) - leave it as the owner set it.
+
+<span class="fc" id="L87">            return closed;</span>
+        });
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

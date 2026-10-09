@@ -1,0 +1,1025 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TransportTest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco.exec</a> &gt; <a href="index.source.html" class="el_package">com.rentaltracker.transport</a> &gt; <span class="el_source">TransportTest.java</span></div><h1>TransportTest.java</h1><pre class="source lang-java linenums">package com.rentaltracker.transport;
+
+import com.rentaltracker.domain.Item;
+import com.rentaltracker.domain.ItemStatus;
+import com.rentaltracker.domain.Rental;
+import com.rentaltracker.domain.RentalStatus;
+import com.rentaltracker.domain.User;
+import com.rentaltracker.infrastructure.DatabaseManager;
+import com.rentaltracker.repository.sqlite.SQLiteItemRepository;
+import com.rentaltracker.repository.sqlite.SQLiteRentalRepository;
+import com.rentaltracker.repository.sqlite.SQLiteTransactor;
+import com.rentaltracker.repository.sqlite.SQLiteUserRepository;
+import com.rentaltracker.service.ItemService;
+import com.rentaltracker.service.RentalService;
+import com.rentaltracker.service.UserService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Clock;
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+<span class="fc" id="L34">class TransportTest {</span>
+
+    @TempDir
+    Path tempDir;
+
+<span class="fc" id="L39">    private final PrintStream originalOut = System.out;</span>
+
+    private SQLiteUserRepository users;
+    private SQLiteItemRepository items;
+    private SQLiteRentalRepository rentals;
+
+    private UserService userService;
+    private ItemService itemService;
+    private RentalService rentalService;
+
+    @BeforeEach
+    void beforeEach() {
+<span class="fc" id="L51">        DatabaseManager db = createDatabase();</span>
+
+<span class="fc" id="L53">        users = new SQLiteUserRepository(db);</span>
+<span class="fc" id="L54">        items = new SQLiteItemRepository(db);</span>
+<span class="fc" id="L55">        rentals = new SQLiteRentalRepository(db);</span>
+
+<span class="fc" id="L57">        SQLiteTransactor transactor = new SQLiteTransactor(db);</span>
+
+<span class="fc" id="L59">        userService = new UserService(users);</span>
+
+<span class="fc" id="L61">        itemService = new ItemService(</span>
+                items,
+                rentals,
+                users,
+                transactor
+        );
+
+<span class="fc" id="L68">        rentalService = new RentalService(</span>
+                items,
+                rentals,
+                userService,
+                transactor,
+<span class="fc" id="L73">                Clock.systemDefaultZone()</span>
+        );
+<span class="fc" id="L75">    }</span>
+
+    @AfterEach
+    void restoreSystemOutput() {
+<span class="fc" id="L79">        System.setOut(originalOut);</span>
+<span class="fc" id="L80">    }</span>
+
+    private DatabaseManager createDatabase() {
+<span class="fc" id="L83">        Path database = tempDir.resolve(&quot;rental-tracker.db&quot;);</span>
+<span class="fc" id="L84">        DatabaseManager databaseManager = new DatabaseManager(database);</span>
+<span class="fc" id="L85">        databaseManager.initialize();</span>
+<span class="fc" id="L86">        return databaseManager;</span>
+    }
+
+    @Test
+    void testFirstLaunchRegistersOwnerAndDisplaysWelcomeMessage() {
+<span class="fc" id="L91">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L93">                        &quot;  JACKSON  \n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L96">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L98">        System.setIn(input);</span>
+<span class="fc" id="L99">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L101">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L107">        transport.start();</span>
+
+<span class="fc" id="L109">        User owner = users.findFirst().orElseThrow();</span>
+
+<span class="fc" id="L111">        assertEquals(&quot;jackson&quot;, owner.username());</span>
+
+<span class="fc" id="L113">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L115">        assertTrue(result.contains(&quot;Welcome, jackson!&quot;));</span>
+<span class="fc" id="L116">        assertTrue(result.contains(&quot;=== Rental tracker ===&quot;));</span>
+<span class="fc" id="L117">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L118">    }</span>
+
+    @Test
+    void testStartingWithExistingOwnerWelcomesBackAndShowsMenu() {
+<span class="fc" id="L122">        User existingOwner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L124">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L126">                        &quot;5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L129">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L131">        System.setIn(input);</span>
+<span class="fc" id="L132">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L134">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L140">        transport.start();</span>
+
+<span class="fc" id="L142">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L144">        assertTrue(result.contains(&quot;Welcome back, jackson!&quot;));</span>
+<span class="fc" id="L145">        assertTrue(result.contains(&quot;=== Rental tracker ===&quot;));</span>
+<span class="fc" id="L146">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L147">        assertEquals(</span>
+<span class="fc" id="L148">                existingOwner.id(),</span>
+<span class="fc" id="L149">                users.findFirst().orElseThrow().id()</span>
+        );
+<span class="fc" id="L151">    }</span>
+
+    @Test
+    void testInvalidMenuOptionDisplaysError() {
+<span class="fc" id="L155">        users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L157">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L159">                        &quot;99\n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L162">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L164">        System.setIn(input);</span>
+<span class="fc" id="L165">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L167">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L173">        transport.start();</span>
+
+<span class="fc" id="L175">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L177">        assertTrue(result.contains(&quot;Invalid option.&quot;));</span>
+<span class="fc" id="L178">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L179">    }</span>
+
+    @Test
+    void testListItemSuccessfully() {
+<span class="fc" id="L183">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L185">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;1\nLaptop\nGaming laptop\n500\n5\n&quot;
+<span class="fc" id="L188">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L191">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L193">        System.setIn(input);</span>
+<span class="fc" id="L194">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L196">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L202">        transport.start();</span>
+
+<span class="fc" id="L204">        Item item = items.findByOwnerId(owner.id())</span>
+<span class="fc" id="L205">                .stream()</span>
+<span class="fc" id="L206">                .findFirst()</span>
+<span class="fc" id="L207">                .orElseThrow();</span>
+
+<span class="fc" id="L209">        assertEquals(owner.id(), item.ownerId());</span>
+<span class="fc" id="L210">        assertEquals(&quot;Laptop&quot;, item.name());</span>
+<span class="fc" id="L211">        assertEquals(&quot;Gaming laptop&quot;, item.description());</span>
+<span class="fc" id="L212">        assertEquals(new BigDecimal(&quot;500&quot;), item.costPerDay());</span>
+<span class="fc" id="L213">        assertEquals(ItemStatus.AVAILABLE, item.status());</span>
+
+<span class="fc" id="L215">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L217">        assertTrue(result.contains(&quot;=== List an item ===&quot;));</span>
+<span class="fc" id="L218">        assertTrue(result.contains(&quot;Item listed successfully.&quot;));</span>
+<span class="fc" id="L219">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L220">    }</span>
+
+    @Test
+    void testListItemWithInvalidCostDisplaysError() {
+<span class="fc" id="L224">        users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L226">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;1\nLaptop\nGaming laptop\nnot-a-number\n5\n&quot;
+<span class="fc" id="L229">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L232">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L234">        System.setIn(input);</span>
+<span class="fc" id="L235">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L237">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L243">        transport.start();</span>
+
+<span class="fc" id="L245">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L247">        assertTrue(result.contains(&quot;Invalid cost.&quot;));</span>
+<span class="fc" id="L248">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L249">        assertTrue(items.findByOwnerId(1).isEmpty());</span>
+<span class="fc" id="L250">    }</span>
+
+    @Test
+    void testListItemWhenServiceRejectsCostDisplaysBusinessError() {
+<span class="fc" id="L254">        users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L256">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;1\nLaptop\nGaming laptop\n0\n5\n&quot;
+<span class="fc" id="L259">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L262">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L264">        System.setIn(input);</span>
+<span class="fc" id="L265">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L267">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L273">        transport.start();</span>
+
+<span class="fc" id="L275">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L277">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L278">        assertTrue(items.findByOwnerId(1).isEmpty());</span>
+<span class="fc" id="L279">    }</span>
+
+    @Test
+    void testViewInventoryWithNoItemsDisplaysEmptyMessage() {
+<span class="fc" id="L283">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L285">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L287">                        &quot;2\n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L290">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L292">        System.setIn(input);</span>
+<span class="fc" id="L293">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L295">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L301">        transport.start();</span>
+
+<span class="fc" id="L303">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L305">        assertTrue(result.contains(&quot;=== My inventory ===&quot;));</span>
+<span class="fc" id="L306">        assertTrue(result.contains(&quot;No items found.&quot;));</span>
+<span class="fc" id="L307">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L308">        assertTrue(items.findByOwnerId(owner.id()).isEmpty());</span>
+<span class="fc" id="L309">    }</span>
+
+    @Test
+    void testViewInventoryDisplaysItems() {
+<span class="fc" id="L313">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L315">        Item item = itemService.listItem(</span>
+<span class="fc" id="L316">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L322">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L324">                        &quot;2\nB\n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L327">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L329">        System.setIn(input);</span>
+<span class="fc" id="L330">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L332">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L338">        transport.start();</span>
+
+<span class="fc" id="L340">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L342">        assertTrue(result.contains(&quot;=== My inventory ===&quot;));</span>
+<span class="fc" id="L343">        assertTrue(result.contains(&quot;1) Laptop - available&quot;));</span>
+<span class="fc" id="L344">        assertTrue(result.contains(&quot;B) Back to menu&quot;));</span>
+<span class="fc" id="L345">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L346">        assertEquals(item.id(), items.getById(item.id()).id());</span>
+<span class="fc" id="L347">    }</span>
+
+    @Test
+    void testViewInventorySelectsItemAndDisplaysDetails() {
+<span class="fc" id="L351">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L353">        Item item = itemService.listItem(</span>
+<span class="fc" id="L354">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L360">        ByteArrayInputStream input =</span>
+<span class="fc" id="L361">                new ByteArrayInputStream(&quot;2\n1\n99\nb\nB\n5\n&quot;.getBytes(StandardCharsets.UTF_8));</span>
+
+<span class="fc" id="L363">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L365">        System.setIn(input);</span>
+<span class="fc" id="L366">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L368">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L374">        transport.start();</span>
+
+<span class="fc" id="L376">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L378">        assertTrue(result.contains(&quot;=== Laptop ===&quot;));</span>
+<span class="fc" id="L379">        assertTrue(result.contains(&quot;description    Gaming laptop&quot;));</span>
+<span class="fc" id="L380">        assertTrue(result.contains(&quot;cost per day   500&quot;));</span>
+<span class="fc" id="L381">        assertTrue(result.contains(&quot;status         available&quot;));</span>
+<span class="fc" id="L382">        assertTrue(result.contains(&quot;owner          jackson&quot;));</span>
+<span class="fc" id="L383">        assertTrue(result.contains(&quot;Delist&quot;));</span>
+<span class="fc" id="L384">        assertTrue(result.contains(&quot;2) Back to list&quot;));</span>
+<span class="fc" id="L385">        assertTrue(result.contains(&quot;Invalid option.&quot;));</span>
+
+<span class="fc" id="L387">        assertEquals(</span>
+                ItemStatus.AVAILABLE,
+<span class="fc" id="L389">                items.getById(item.id()).status()</span>
+        );
+<span class="fc" id="L391">    }</span>
+
+
+    @Test
+    void testDelistAvailableItem() {
+<span class="fc" id="L396">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L398">        Item item = itemService.listItem(</span>
+<span class="fc" id="L399">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L405">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L407">                        &quot;2\n1\n1\n2\nB\n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L410">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L412">        System.setIn(input);</span>
+<span class="fc" id="L413">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L415">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L421">        transport.start();</span>
+
+<span class="fc" id="L423">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L425">        assertTrue(result.contains(&quot;Item delisted.&quot;));</span>
+<span class="fc" id="L426">        assertTrue(result.contains(&quot;status         unlisted&quot;));</span>
+<span class="fc" id="L427">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+
+<span class="fc" id="L429">        assertEquals(</span>
+                ItemStatus.UNLISTED,
+<span class="fc" id="L431">                items.getById(item.id()).status()</span>
+        );
+<span class="fc" id="L433">    }</span>
+
+    @Test
+    void testRelistUnlistedItem() {
+<span class="fc" id="L437">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L439">        Item item = itemService.listItem(</span>
+<span class="fc" id="L440">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L446">        itemService.delist(item.id());</span>
+
+<span class="fc" id="L448">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L450">                        &quot;2\n1\n1\n2\nB\n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L453">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L455">        System.setIn(input);</span>
+<span class="fc" id="L456">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L458">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L464">        transport.start();</span>
+
+<span class="fc" id="L466">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L468">        assertTrue(result.contains(&quot;Item relisted.&quot;));</span>
+<span class="fc" id="L469">        assertTrue(result.contains(&quot;status         available&quot;));</span>
+<span class="fc" id="L470">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+
+<span class="fc" id="L472">        assertEquals(</span>
+                ItemStatus.AVAILABLE,
+<span class="fc" id="L474">                items.getById(item.id()).status()</span>
+        );
+<span class="fc" id="L476">    }</span>
+
+    @Test
+    void testRelistItemWithActiveRentalDisplaysBusinessError() {
+<span class="fc" id="L480">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+<span class="fc" id="L481">        User renter = users.insert(User.newUser(&quot;renter&quot;));</span>
+
+<span class="fc" id="L483">        Item item = itemService.listItem(</span>
+<span class="fc" id="L484">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L490">        itemService.delist(item.id());</span>
+
+<span class="fc" id="L492">        rentals.insert(</span>
+<span class="fc" id="L493">                Rental.newActive(</span>
+<span class="fc" id="L494">                        item.id(),</span>
+<span class="fc" id="L495">                        renter.id(),</span>
+<span class="fc" id="L496">                        LocalDateTime.now(),</span>
+<span class="fc" id="L497">                        LocalDateTime.now().plusDays(3)</span>
+                )
+        );
+
+<span class="fc" id="L501">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L503">                        &quot;2\n1\n1\n2\nB\n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L506">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L508">        System.setIn(input);</span>
+<span class="fc" id="L509">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L511">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L517">        transport.start();</span>
+
+<span class="fc" id="L519">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L521">        assertTrue(result.contains(&quot;Cannot relist item&quot;));</span>
+<span class="fc" id="L522">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+
+<span class="fc" id="L524">        assertEquals(</span>
+                ItemStatus.UNLISTED,
+<span class="fc" id="L526">                items.getById(item.id()).status()</span>
+        );
+<span class="fc" id="L528">    }</span>
+
+    @Test
+    void testViewInventoryPaginationAndInvalidSelections() {
+<span class="fc" id="L532">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc bfc" id="L534" title="All 2 branches covered.">        for (int i = 1; i &lt;= 6; i++) {</span>
+<span class="fc" id="L535">            itemService.listItem(</span>
+<span class="fc" id="L536">                    owner.id(),</span>
+                    &quot;Item &quot; + i,
+                    &quot;Description &quot; + i,
+                    new BigDecimal(&quot;100&quot;)
+            );
+        }
+
+<span class="fc" id="L543">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;2\nN\nN\nP\nP\nabc\n0\n99\nB\n5\n&quot;
+<span class="fc" id="L546">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L549">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L551">        System.setIn(input);</span>
+<span class="fc" id="L552">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L554">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L560">        transport.start();</span>
+
+<span class="fc" id="L562">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L564">        assertTrue(result.contains(&quot;1) Item 1 - available&quot;));</span>
+<span class="fc" id="L565">        assertTrue(result.contains(&quot;5) Item 5 - available&quot;));</span>
+<span class="fc" id="L566">        assertTrue(result.contains(&quot;1) Item 6 - available&quot;));</span>
+<span class="fc" id="L567">        assertTrue(result.contains(&quot;N) Next page&quot;));</span>
+<span class="fc" id="L568">        assertTrue(result.contains(&quot;P) Previous page&quot;));</span>
+<span class="fc" id="L569">        assertTrue(result.contains(&quot;Invalid number.&quot;));</span>
+<span class="fc" id="L570">        assertTrue(result.contains(&quot;Invalid option.&quot;));</span>
+<span class="fc" id="L571">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L572">    }</span>
+
+    @Test
+    void testRecordRentalWithNoAvailableItemsDisplaysMessage() {
+<span class="fc" id="L576">        users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L578">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+<span class="fc" id="L580">                        &quot;3\n5\n&quot;.getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L583">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L585">        System.setIn(input);</span>
+<span class="fc" id="L586">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L588">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L594">        transport.start();</span>
+
+<span class="fc" id="L596">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L598">        assertTrue(result.contains(&quot;No available items.&quot;));</span>
+<span class="fc" id="L599">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L600">    }</span>
+
+    @Test
+    void testRecordRentalSuccessfully() {
+<span class="fc" id="L604">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+<span class="fc" id="L605">        User renter = users.insert(User.newUser(&quot;alex&quot;));</span>
+
+<span class="fc" id="L607">        Item item = itemService.listItem(</span>
+<span class="fc" id="L608">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L614">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;3\n1\nalex\n3\n5\n&quot;
+<span class="fc" id="L617">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L620">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L622">        System.setIn(input);</span>
+<span class="fc" id="L623">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L625">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L631">        transport.start();</span>
+
+<span class="fc" id="L633">        Rental rental = rentals.findByItemId(item.id())</span>
+<span class="fc" id="L634">                .stream()</span>
+<span class="fc" id="L635">                .findFirst()</span>
+<span class="fc" id="L636">                .orElseThrow();</span>
+
+<span class="fc" id="L638">        assertEquals(item.id(), rental.itemId());</span>
+<span class="fc" id="L639">        assertEquals(renter.id(), rental.renterId());</span>
+<span class="fc" id="L640">        assertEquals(RentalStatus.ACTIVE, rental.status());</span>
+
+<span class="fc" id="L642">        assertEquals(</span>
+                ItemStatus.RENTED,
+<span class="fc" id="L644">                items.getById(item.id()).status()</span>
+        );
+
+<span class="fc" id="L647">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L649">        assertTrue(result.contains(&quot;Rental recorded successfully.&quot;));</span>
+<span class="fc" id="L650">        assertTrue(result.contains(&quot;Rental ID: &quot; + rental.id()));</span>
+<span class="fc" id="L651">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L652">    }</span>
+
+    @Test
+    void testRecordRentalWithInvalidDurationDisplaysError() {
+<span class="fc" id="L656">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L658">        Item item = itemService.listItem(</span>
+<span class="fc" id="L659">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L665">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;3\n1\nalex\ninvalid\n5\n&quot;
+<span class="fc" id="L668">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L671">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L673">        System.setIn(input);</span>
+<span class="fc" id="L674">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L676">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L682">        transport.start();</span>
+
+<span class="fc" id="L684">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L686">        assertTrue(result.contains(&quot;Invalid duration.&quot;));</span>
+<span class="fc" id="L687">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+
+<span class="fc" id="L689">        assertTrue(rentals.findByItemId(item.id()).isEmpty());</span>
+
+<span class="fc" id="L691">        assertEquals(</span>
+                ItemStatus.AVAILABLE,
+<span class="fc" id="L693">                items.getById(item.id()).status()</span>
+        );
+<span class="fc" id="L695">    }</span>
+
+    @Test
+    void testRecordRentalWhenServiceRejectsRentalDisplaysBusinessError() {
+<span class="fc" id="L699">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L701">        Item item = itemService.listItem(</span>
+<span class="fc" id="L702">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L708">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;3\n1\njackson\n3\n5\n&quot;
+<span class="fc" id="L711">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L714">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L716">        System.setIn(input);</span>
+<span class="fc" id="L717">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L719">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L725">        transport.start();</span>
+
+<span class="fc" id="L727">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L729">        assertTrue(result.contains(</span>
+                &quot;The owner of an item cannot rent their own item&quot;
+        ));
+<span class="fc" id="L732">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+
+<span class="fc" id="L734">        assertTrue(rentals.findByItemId(item.id()).isEmpty());</span>
+
+<span class="fc" id="L736">        assertEquals(</span>
+                ItemStatus.AVAILABLE,
+<span class="fc" id="L738">                items.getById(item.id()).status()</span>
+        );
+<span class="fc" id="L740">    }</span>
+
+    @Test
+    void testConfirmReturnSuccessfully() {
+<span class="fc" id="L744">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+<span class="fc" id="L745">        User renter = users.insert(User.newUser(&quot;alex&quot;));</span>
+
+<span class="fc" id="L747">        Item item = itemService.listItem(</span>
+<span class="fc" id="L748">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L754">        items.updateStatus(item.id(), ItemStatus.RENTED);</span>
+
+<span class="fc" id="L756">        Rental rental = rentals.insert(</span>
+<span class="fc" id="L757">                Rental.newActive(</span>
+<span class="fc" id="L758">                        item.id(),</span>
+<span class="fc" id="L759">                        renter.id(),</span>
+<span class="fc" id="L760">                        LocalDateTime.now(),</span>
+<span class="fc" id="L761">                        LocalDateTime.now().plusDays(3)</span>
+                )
+        );
+
+<span class="fc" id="L765">        ByteArrayInputStream input =</span>
+<span class="fc" id="L766">                new ByteArrayInputStream(&quot;4\n1\n99\nb\n1\n1\n5\n&quot;.getBytes(StandardCharsets.UTF_8));</span>
+
+<span class="fc" id="L768">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L770">        System.setIn(input);</span>
+<span class="fc" id="L771">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L773">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L779">        transport.start();</span>
+
+<span class="fc" id="L781">        Rental savedRental = rentals.findById(rental.id()).orElseThrow();</span>
+
+<span class="fc" id="L783">        assertEquals(</span>
+                RentalStatus.CLOSED,
+<span class="fc" id="L785">                savedRental.status()</span>
+        );
+
+<span class="fc" id="L788">        assertEquals(</span>
+                ItemStatus.AVAILABLE,
+<span class="fc" id="L790">                items.getById(item.id()).status()</span>
+        );
+
+<span class="fc" id="L793">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L795">        assertTrue(result.contains(&quot;=== Confirm a return ===&quot;));</span>
+<span class="fc" id="L796">        assertTrue(result.contains(&quot;Laptop - alex&quot;));</span>
+<span class="fc" id="L797">        assertTrue(result.contains(&quot;Invalid option.&quot;));</span>
+<span class="fc" id="L798">        assertTrue(result.contains(&quot;Return confirmed successfully.&quot;));</span>
+<span class="fc" id="L799">    }</span>
+
+    @Test
+    void testConfirmReturnWithNoActiveRentalsDisplaysMessage() {
+<span class="fc" id="L803">        users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc" id="L805">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;4\n5\n&quot;
+<span class="fc" id="L808">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L811">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L813">        System.setIn(input);</span>
+<span class="fc" id="L814">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L816">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L822">        transport.start();</span>
+
+<span class="fc" id="L824">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L826">        assertTrue(result.contains(&quot;No active rentals.&quot;));</span>
+<span class="fc" id="L827">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L828">        assertTrue(rentals.findById(1).isEmpty());</span>
+<span class="fc" id="L829">    }</span>
+
+    @Test
+    void testConfirmReturnPaginationAndInvalidSelections() {
+<span class="fc" id="L833">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc bfc" id="L835" title="All 2 branches covered.">        for (int i = 1; i &lt;= 6; i++) {</span>
+<span class="fc" id="L836">            User renter = users.insert(</span>
+<span class="fc" id="L837">                    User.newUser(&quot;renter&quot; + i)</span>
+            );
+
+<span class="fc" id="L840">            Item item = itemService.listItem(</span>
+<span class="fc" id="L841">                    owner.id(),</span>
+                    &quot;Item &quot; + i,
+                    &quot;Description &quot; + i,
+                    new BigDecimal(&quot;100&quot;)
+            );
+
+<span class="fc" id="L847">            items.updateStatus(item.id(), ItemStatus.RENTED);</span>
+
+<span class="fc" id="L849">            rentals.insert(</span>
+<span class="fc" id="L850">                    Rental.newActive(</span>
+<span class="fc" id="L851">                            item.id(),</span>
+<span class="fc" id="L852">                            renter.id(),</span>
+<span class="fc" id="L853">                            LocalDateTime.now(),</span>
+<span class="fc" id="L854">                            LocalDateTime.now().plusDays(3)</span>
+                    )
+            );
+        }
+
+<span class="fc" id="L859">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;4\nN\nN\nP\nP\nabc\n0\n99\nB\n5\n&quot;
+<span class="fc" id="L862">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L865">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L867">        System.setIn(input);</span>
+<span class="fc" id="L868">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L870">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L876">        transport.start();</span>
+
+<span class="fc" id="L878">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L880">        assertTrue(result.contains(&quot;1) Item 1 - renter1&quot;));</span>
+<span class="fc" id="L881">        assertTrue(result.contains(&quot;1) Item 6 - renter6&quot;));</span>
+<span class="fc" id="L882">        assertTrue(result.contains(&quot;N) Next page&quot;));</span>
+<span class="fc" id="L883">        assertTrue(result.contains(&quot;P) Previous page&quot;));</span>
+<span class="fc" id="L884">        assertTrue(result.contains(&quot;Invalid number.&quot;));</span>
+<span class="fc" id="L885">        assertTrue(result.contains(&quot;Invalid option.&quot;));</span>
+<span class="fc" id="L886">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L887">    }</span>
+
+    @Test
+    void testRecordRentalPaginationAndInvalidSelections() {
+<span class="fc" id="L891">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+
+<span class="fc bfc" id="L893" title="All 2 branches covered.">        for (int i = 1; i &lt;= 6; i++) {</span>
+<span class="fc" id="L894">            itemService.listItem(</span>
+<span class="fc" id="L895">                    owner.id(),</span>
+                    &quot;Item &quot; + i,
+                    &quot;Description &quot; + i,
+                    new BigDecimal(&quot;100&quot;)
+            );
+        }
+
+<span class="fc" id="L902">        ByteArrayInputStream input =</span>
+                new ByteArrayInputStream(
+                        &quot;3\nN\nN\nP\nP\nabc\n0\n99\nB\n5\n&quot;
+<span class="fc" id="L905">                                .getBytes(StandardCharsets.UTF_8)</span>
+                );
+
+<span class="fc" id="L908">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L910">        System.setIn(input);</span>
+<span class="fc" id="L911">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L913">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L919">        transport.start();</span>
+
+<span class="fc" id="L921">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L923">        assertTrue(result.contains(&quot;1) Item 1 - 100.00/day&quot;));</span>
+<span class="fc" id="L924">        assertTrue(result.contains(&quot;5) Item 5 - 100.00/day&quot;));</span>
+<span class="fc" id="L925">        assertTrue(result.contains(&quot;1) Item 6 - 100.00/day&quot;));</span>
+<span class="fc" id="L926">        assertTrue(result.contains(&quot;N) Next page&quot;));</span>
+<span class="fc" id="L927">        assertTrue(result.contains(&quot;P) Previous page&quot;));</span>
+<span class="fc" id="L928">        assertTrue(result.contains(&quot;Invalid number.&quot;));</span>
+<span class="fc" id="L929">        assertTrue(result.contains(&quot;Invalid option.&quot;));</span>
+<span class="fc" id="L930">        assertTrue(result.contains(&quot;Goodbye.&quot;));</span>
+<span class="fc" id="L931">    }</span>
+
+    @Test
+    void testConfirmReturnWhenRentalIsNoLongerActiveDisplaysBusinessError() {
+<span class="fc" id="L935">        User owner = users.insert(User.newUser(&quot;jackson&quot;));</span>
+<span class="fc" id="L936">        User renter = users.insert(User.newUser(&quot;alex&quot;));</span>
+
+<span class="fc" id="L938">        Item item = itemService.listItem(</span>
+<span class="fc" id="L939">                owner.id(),</span>
+                &quot;Laptop&quot;,
+                &quot;Gaming laptop&quot;,
+                new BigDecimal(&quot;500&quot;)
+        );
+
+<span class="fc" id="L945">        Rental rental = rentalService.recordRental(</span>
+<span class="fc" id="L946">                item.id(),</span>
+<span class="fc" id="L947">                renter.username(),</span>
+                3
+        );
+
+<span class="fc" id="L951">        InputStream input = new InputStream() {</span>
+<span class="fc" id="L952">            private final ByteArrayInputStream source =</span>
+                    new ByteArrayInputStream(
+                            &quot;4\n1\n1\n2\n5\n&quot;
+<span class="fc" id="L955">                                    .getBytes(StandardCharsets.UTF_8)</span>
+                    );
+
+<span class="fc" id="L958">            private int oneCount = 0;</span>
+
+            @Override
+            public int read() {
+<span class="fc" id="L962">                int value = source.read();</span>
+
+<span class="fc bfc" id="L964" title="All 2 branches covered.">                if (value == '1') {</span>
+<span class="fc" id="L965">                    oneCount++;</span>
+
+<span class="fc bfc" id="L967" title="All 2 branches covered.">                    if (oneCount == 2) {</span>
+<span class="fc" id="L968">                        rentals.updateStatus(</span>
+<span class="fc" id="L969">                                rental.id(),</span>
+                                RentalStatus.CLOSED,
+<span class="fc" id="L971">                                LocalDateTime.now()</span>
+                        );
+                    }
+                }
+
+<span class="fc" id="L976">                return value;</span>
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) {
+<span class="pc bpc" id="L981" title="1 of 2 branches missed.">                if (length == 0) {</span>
+<span class="nc" id="L982">                    return 0;</span>
+                }
+
+<span class="fc" id="L985">                int value = read();</span>
+
+<span class="pc bpc" id="L987" title="1 of 2 branches missed.">                if (value == -1) {</span>
+<span class="nc" id="L988">                    return -1;</span>
+                }
+
+<span class="fc" id="L991">                buffer[offset] = (byte) value;</span>
+<span class="fc" id="L992">                return 1;</span>
+            }
+        };
+
+<span class="fc" id="L996">        ByteArrayOutputStream output = new ByteArrayOutputStream();</span>
+
+<span class="fc" id="L998">        System.setIn(input);</span>
+<span class="fc" id="L999">        System.setOut(new PrintStream(output));</span>
+
+<span class="fc" id="L1001">        Transport transport = new Transport(</span>
+                userService,
+                itemService,
+                rentalService
+        );
+
+<span class="fc" id="L1007">        transport.start();</span>
+
+<span class="fc" id="L1009">        String result = output.toString(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L1011">        assertTrue(</span>
+<span class="fc" id="L1012">                result.contains(</span>
+<span class="fc" id="L1013">                        &quot;Rental &quot; + rental.id()</span>
+                                + &quot; is not active, it cannot be returned&quot;
+                )
+        );
+
+<span class="fc" id="L1018">        assertEquals(</span>
+                RentalStatus.CLOSED,
+<span class="fc" id="L1020">                rentals.findById(rental.id()).orElseThrow().status()</span>
+        );
+<span class="fc" id="L1022">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

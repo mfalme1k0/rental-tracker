@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DatabaseManagerTest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco.exec</a> &gt; <a href="index.source.html" class="el_package">com.rentaltracker.infrastructure</a> &gt; <span class="el_source">DatabaseManagerTest.java</span></div><h1>DatabaseManagerTest.java</h1><pre class="source lang-java linenums">package com.rentaltracker.infrastructure;
+
+import com.rentaltracker.exception.DatabaseConnectionException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.sql.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+<span class="fc" id="L14">class DatabaseManagerTest {</span>
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    void initializeCreatesAllTables() throws Exception {
+<span class="fc" id="L21">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L23">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L24">             Statement statement = connection.createStatement();</span>
+<span class="fc" id="L25">             ResultSet resultSet = statement.executeQuery(</span>
+                     &quot;SELECT name FROM sqlite_master &quot; +
+                             &quot;WHERE type = 'table' &quot; +
+                             &quot;AND name IN ('users', 'listed_items', 'rentals') &quot; +
+                             &quot;ORDER BY name&quot;)) {
+
+<span class="fc" id="L31">            int tableCount = 0;</span>
+
+<span class="fc bfc" id="L33" title="All 2 branches covered.">            while (resultSet.next()) {</span>
+<span class="fc" id="L34">                tableCount++;</span>
+            }
+
+<span class="fc" id="L37">            assertEquals(3, tableCount);</span>
+        }
+<span class="fc" id="L39">    }</span>
+
+    @Test
+    void rejectsItemWithUnknownOwner() throws Exception {
+<span class="fc" id="L43">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L45">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L46">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L48">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L50">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            INSERT INTO listed_items
+                                (owner_id, name, cost_per_day, status)
+                            VALUES
+                                (999, 'Bike', 100, 'available')
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L58">            assertTrue(</span>
+<span class="fc" id="L59">                    exception.getMessage().contains(&quot;FOREIGN KEY constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L62">    }</span>
+
+    @Test
+    void rejectsUserWithNullUsername() throws Exception {
+<span class="fc" id="L66">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L68">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L69">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L71">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L73">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            INSERT INTO users (username)
+                            VALUES (NULL)
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L79">            assertTrue(</span>
+<span class="fc" id="L80">                    exception.getMessage().contains(&quot;NOT NULL constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L83">    }</span>
+
+    @Test
+    void rejectsDuplicateUsername() throws Exception {
+<span class="fc" id="L87">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L89">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L90">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L92">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('alice')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L97">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L99">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            INSERT INTO users (username)
+                            VALUES ('alice')
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L105">            assertTrue(</span>
+<span class="fc" id="L106">                    exception.getMessage().contains(&quot;UNIQUE constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L109">    }</span>
+
+    @Test
+    void rejectsItemWithNonPositiveCost() throws Exception {
+<span class="fc" id="L113">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L115">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L116">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L118">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('alice')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L123">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L125">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            INSERT INTO listed_items
+                                (owner_id, name, cost_per_day, status)
+                            VALUES
+                                (1, 'Bike', 0, 'available')
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L133">            assertTrue(</span>
+<span class="fc" id="L134">                    exception.getMessage().contains(&quot;CHECK constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L137">    }</span>
+
+    @Test
+    void rejectsItemWithInvalidStatus() throws Exception {
+<span class="fc" id="L141">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L143">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L144">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L146">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('alice')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L151">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L153">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            INSERT INTO listed_items
+                                (owner_id, name, cost_per_day, status)
+                            VALUES
+                                (1, 'Bike', 100, 'broken')
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L161">            assertTrue(</span>
+<span class="fc" id="L162">                    exception.getMessage().contains(&quot;CHECK constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L165">    }</span>
+
+    @Test
+    void rejectsRentalWithInvalidStatus() throws Exception {
+<span class="fc" id="L169">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L171">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L172">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L174">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('owner')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L179">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('renter')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L184">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO listed_items
+                        (owner_id, name, cost_per_day, status)
+                    VALUES
+                        (1, 'Bike', 100, 'available')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L191">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L193">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            INSERT INTO rentals
+                                (item_id, renter_id, start_time, end_time, status)
+                            VALUES
+                                (
+                                    1,
+                                    2,
+                                    '2026-09-30T10:00:00Z',
+                                    '2026-10-01T10:00:00Z',
+                                    'overdue'
+                                )
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L207">            assertTrue(</span>
+<span class="fc" id="L208">                    exception.getMessage().contains(&quot;CHECK constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L211">    }</span>
+
+    @Test
+    void rejectsRentalWhenEndTimeIsNotAfterStartTime() throws Exception {
+<span class="fc" id="L215">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L217">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L218">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L220">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('owner')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L225">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('renter')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L230">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO listed_items
+                        (owner_id, name, cost_per_day, status)
+                    VALUES
+                        (1, 'Bike', 100, 'available')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L237">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L239">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            INSERT INTO rentals
+                                (item_id, renter_id, start_time, end_time, status)
+                            VALUES
+                                (
+                                    1,
+                                    2,
+                                    '2026-09-30T10:00:00Z',
+                                    '2026-09-30T09:00:00Z',
+                                    'active'
+                                )
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L253">            assertTrue(</span>
+<span class="fc" id="L254">                    exception.getMessage().contains(&quot;CHECK constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L257">    }</span>
+
+    @Test
+    void rejectsDeletingUserWhoOwnsItem() throws Exception {
+<span class="fc" id="L261">        DatabaseManager databaseManager = createDatabase();</span>
+
+<span class="fc" id="L263">        try (Connection connection = databaseManager.getConnection();</span>
+<span class="fc" id="L264">             Statement statement = connection.createStatement()) {</span>
+
+<span class="fc" id="L266">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO users (username)
+                    VALUES ('alice')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L271">            statement.executeUpdate(&quot;&quot;&quot;</span>
+                    INSERT INTO listed_items
+                        (owner_id, name, cost_per_day, status)
+                    VALUES
+                        (1, 'Bike', 100, 'available')
+                    &quot;&quot;&quot;);
+
+<span class="fc" id="L278">            SQLException exception = assertThrows(</span>
+                    SQLException.class,
+<span class="nc" id="L280">                    () -&gt; statement.executeUpdate(&quot;&quot;&quot;</span>
+                            DELETE FROM users
+                            WHERE id = 1
+                            &quot;&quot;&quot;)
+            );
+
+<span class="fc" id="L286">            assertTrue(</span>
+<span class="fc" id="L287">                    exception.getMessage().contains(&quot;FOREIGN KEY constraint failed&quot;)</span>
+            );
+        }
+<span class="fc" id="L290">    }</span>
+
+    private DatabaseManager createDatabase() {
+<span class="fc" id="L293">        Path database = tempDir.resolve(&quot;rental-tracker.db&quot;);</span>
+
+<span class="fc" id="L295">        DatabaseManager databaseManager =</span>
+                new DatabaseManager(database);
+
+<span class="fc" id="L298">        databaseManager.initialize();</span>
+
+<span class="fc" id="L300">        return databaseManager;</span>
+    }
+
+    @Test
+    void initializeMigratesLegacyCaseSensitiveUsersTable() throws Exception {
+<span class="fc" id="L305">        Path db = tempDir.resolve(&quot;legacy.db&quot;);</span>
+<span class="fc" id="L306">        try (Connection c = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + db);</span>
+<span class="fc" id="L307">             Statement s = c.createStatement()) {</span>
+<span class="fc" id="L308">            s.execute(&quot;CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, &quot;</span>
+                    + &quot;created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))&quot;);
+<span class="fc" id="L310">            s.execute(&quot;INSERT INTO users (username) VALUES ('owner'), ('bob')&quot;);</span>
+        }
+
+<span class="fc" id="L313">        DatabaseManager manager = new DatabaseManager(db);</span>
+<span class="fc" id="L314">        manager.initialize();</span>
+
+<span class="fc" id="L316">        try (Connection c = manager.getConnection(); Statement s = c.createStatement()) {</span>
+<span class="fc" id="L317">            assertThrows(SQLException.class,</span>
+<span class="nc" id="L318">                    () -&gt; s.execute(&quot;INSERT INTO users (username) VALUES ('BOB')&quot;));</span>
+<span class="fc" id="L319">            try (ResultSet rs = s.executeQuery(&quot;SELECT id FROM users WHERE username = 'bob'&quot;)) {</span>
+<span class="fc" id="L320">                assertEquals(2, rs.getInt(1));          // ids preserved</span>
+            }
+        }
+<span class="fc" id="L323">        manager.initialize();                            // idempotent: second run is a no-op</span>
+<span class="fc" id="L324">    }</span>
+
+    @Test
+    void initializeRefusesToMigrateWhenCaseDuplicatesExist() throws Exception {
+<span class="fc" id="L328">        Path db = tempDir.resolve(&quot;dupes.db&quot;);</span>
+<span class="fc" id="L329">        try (Connection c = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + db);</span>
+<span class="fc" id="L330">             Statement s = c.createStatement()) {</span>
+<span class="fc" id="L331">            s.execute(&quot;CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, &quot;</span>
+                    + &quot;created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))&quot;);
+<span class="fc" id="L333">            s.execute(&quot;INSERT INTO users (username) VALUES ('mfalme'), ('Mfalme')&quot;);</span>
+        }
+
+<span class="fc" id="L336">        assertThrows(DatabaseConnectionException.class,</span>
+<span class="nc" id="L337">                () -&gt; new DatabaseManager(db).initialize());</span>
+<span class="fc" id="L338">    }</span>
+
+    @Test
+    void triggerRejectsOwnerRentingOwnItem() throws Exception {
+<span class="fc" id="L342">        DatabaseManager manager = createDatabase();</span>
+<span class="fc" id="L343">        try (Connection c = manager.getConnection(); Statement s = c.createStatement()) {</span>
+<span class="fc" id="L344">            s.execute(&quot;INSERT INTO users (username) VALUES ('owner')&quot;);</span>
+<span class="fc" id="L345">            s.execute(&quot;INSERT INTO listed_items (owner_id, name, cost_per_day, status) &quot;</span>
+                    + &quot;VALUES (1, 'ladder', '5', 'available')&quot;);
+<span class="pc" id="L347">            SQLException e = assertThrows(SQLException.class, () -&gt; s.execute(</span>
+                    &quot;INSERT INTO rentals (item_id, renter_id, start_time, end_time, status) &quot;
+                            + &quot;VALUES (1, 1, '2026-10-01', '2026-10-02', 'active')&quot;));
+<span class="fc" id="L350">            assertTrue(e.getMessage().contains(&quot;owner cannot rent own item&quot;));</span>
+        }
+<span class="fc" id="L352">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

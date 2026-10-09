@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ItemServiceTest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">jacoco.exec</a> &gt; <a href="index.source.html" class="el_package">com.rentaltracker.service</a> &gt; <span class="el_source">ItemServiceTest.java</span></div><h1>ItemServiceTest.java</h1><pre class="source lang-java linenums">package com.rentaltracker.service;
+
+import com.rentaltracker.domain.Item;
+import com.rentaltracker.domain.ItemDetails;
+import com.rentaltracker.domain.ItemStatus;
+import com.rentaltracker.domain.Rental;
+import com.rentaltracker.exception.BusinessRuleException;
+import com.rentaltracker.exception.InvalidStateTransitionException;
+import com.rentaltracker.exception.ValidationException;
+import com.rentaltracker.infrastructure.DatabaseManager;
+import com.rentaltracker.repository.sqlite.SQLiteItemRepository;
+import com.rentaltracker.repository.sqlite.SQLiteRentalRepository;
+import com.rentaltracker.repository.sqlite.SQLiteTransactor;
+import com.rentaltracker.repository.sqlite.SQLiteUserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.math.BigDecimal;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+<span class="fc" id="L28">class ItemServiceTest {</span>
+
+    @TempDir
+    Path tempDir;
+
+    private SQLiteItemRepository items;
+    private SQLiteRentalRepository rentals;
+    private SQLiteUserRepository users;
+    private ItemService service;
+    private long ownerId;
+
+    @BeforeEach
+    void setUp() {
+<span class="fc" id="L41">        DatabaseManager db = createDatabase();</span>
+<span class="fc" id="L42">        items = new SQLiteItemRepository(db);</span>
+<span class="fc" id="L43">        rentals = new SQLiteRentalRepository(db);</span>
+<span class="fc" id="L44">        users = new SQLiteUserRepository(db);</span>
+<span class="fc" id="L45">        SQLiteTransactor transactor = new SQLiteTransactor(db);</span>
+<span class="fc" id="L46">        service = new ItemService(items, rentals, users, transactor);</span>
+<span class="fc" id="L47">        ownerId = users.insert(com.rentaltracker.domain.User.newUser(&quot;owner&quot;)).id();</span>
+<span class="fc" id="L48">    }</span>
+
+    @Test
+    void listItemStartsAvailableWithDecimalCost() {
+<span class="fc" id="L52">        Item item = service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, new BigDecimal(&quot;2.50&quot;));</span>
+<span class="fc" id="L53">        assertEquals(ItemStatus.AVAILABLE, item.status());</span>
+<span class="fc" id="L54">        assertEquals(new BigDecimal(&quot;2.50&quot;), item.costPerDay());</span>
+<span class="fc" id="L55">    }</span>
+
+    @Test
+    void listItemRejectsBlankName() {
+<span class="fc" id="L59">        assertThrows(ValidationException.class,</span>
+<span class="nc" id="L60">                () -&gt; service.listItem(ownerId, &quot; &quot;, &quot;d&quot;, BigDecimal.ONE));</span>
+<span class="fc" id="L61">    }</span>
+
+    @Test
+    void listItemRejectsZeroOrNegativeCost() {
+<span class="fc" id="L65">        assertThrows(ValidationException.class,</span>
+<span class="nc" id="L66">                () -&gt; service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, BigDecimal.ZERO));</span>
+<span class="fc" id="L67">        assertThrows(ValidationException.class,</span>
+<span class="nc" id="L68">                () -&gt; service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, new BigDecimal(&quot;-1&quot;)));</span>
+<span class="fc" id="L69">    }</span>
+
+    @Test
+    void getAvailableItemsExcludesRentedAndUnlisted() {
+<span class="fc" id="L73">        service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, BigDecimal.ONE);</span>
+<span class="fc" id="L74">        Item drill = service.listItem(ownerId, &quot;Drill&quot;, &quot;d&quot;, BigDecimal.ONE);</span>
+<span class="fc" id="L75">        items.updateStatus(drill.id(), ItemStatus.RENTED);</span>
+
+<span class="fc" id="L77">        List&lt;Item&gt; available = service.getAvailableItems(ownerId);</span>
+<span class="fc" id="L78">        assertEquals(1, available.size());</span>
+<span class="fc" id="L79">        assertEquals(&quot;Ladder&quot;, available.get(0).name());</span>
+<span class="fc" id="L80">    }</span>
+
+    @Test
+    void getDetailsIncludesOwnerUsername() {
+<span class="fc" id="L84">        Item item = service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, BigDecimal.ONE);</span>
+<span class="fc" id="L85">        ItemDetails details = service.getDetails(item.id());</span>
+<span class="fc" id="L86">        assertEquals(&quot;owner&quot;, details.ownerUsername());</span>
+<span class="fc" id="L87">    }</span>
+
+    @Test
+    void delistMovesAvailableToUnlisted() {
+<span class="fc" id="L91">        Item item = service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, BigDecimal.ONE);</span>
+<span class="fc" id="L92">        Item unlisted = service.delist(item.id());</span>
+<span class="fc" id="L93">        assertEquals(ItemStatus.UNLISTED, unlisted.status());</span>
+<span class="fc" id="L94">    }</span>
+
+    @Test
+    void delistTwiceIsRejected() {
+<span class="fc" id="L98">        Item item = service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, BigDecimal.ONE);</span>
+<span class="fc" id="L99">        service.delist(item.id());</span>
+<span class="pc" id="L100">        assertThrows(InvalidStateTransitionException.class, () -&gt; service.delist(item.id()));</span>
+<span class="fc" id="L101">    }</span>
+
+    @Test
+    void relistSucceedsWhenNoActiveRental() {
+<span class="fc" id="L105">        Item item = service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, BigDecimal.ONE);</span>
+<span class="fc" id="L106">        service.delist(item.id());</span>
+<span class="fc" id="L107">        Item relisted = service.relist(item.id());</span>
+<span class="fc" id="L108">        assertEquals(ItemStatus.AVAILABLE, relisted.status());</span>
+<span class="fc" id="L109">    }</span>
+
+    @Test
+    void relistIsBlockedWhileAnActiveRentalExists() {
+<span class="fc" id="L113">        Item item = service.listItem(ownerId, &quot;Ladder&quot;, &quot;d&quot;, BigDecimal.ONE);</span>
+<span class="fc" id="L114">        long renterId = users.insert(com.rentaltracker.domain.User.newUser(&quot;renter&quot;)).id();</span>
+<span class="fc" id="L115">        items.updateStatus(item.id(), ItemStatus.RENTED);</span>
+<span class="fc" id="L116">        service.delist(item.id()); // delisted while out -&gt; UNLISTED, rental still active</span>
+<span class="fc" id="L117">        rentals.insert(Rental.newActive(item.id(), renterId, LocalDateTime.now(), LocalDateTime.now().plusDays(1)));</span>
+
+<span class="pc" id="L119">        BusinessRuleException ex = assertThrows(BusinessRuleException.class, () -&gt; service.relist(item.id()));</span>
+<span class="fc" id="L120">        assertTrue(ex.getMessage().contains(&quot;active rental&quot;));</span>
+<span class="fc" id="L121">    }</span>
+
+    private DatabaseManager createDatabase() {
+<span class="fc" id="L124">        Path database = tempDir.resolve(&quot;rental-tracker.db&quot;);</span>
+<span class="fc" id="L125">        DatabaseManager databaseManager = new DatabaseManager(database);</span>
+<span class="fc" id="L126">        databaseManager.initialize();</span>
+<span class="fc" id="L127">        return databaseManager;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>

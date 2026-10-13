@@ -28,5 +28,8 @@ Thumbs.db
 
 # Never commit throw-away databases created by tests or experiments
 *.tmp.db*.db.bak
+rental-tracker.db.bak
 
 htmlReport
+#debug log
+build-debug.log

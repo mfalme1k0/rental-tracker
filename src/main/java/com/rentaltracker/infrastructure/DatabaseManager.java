@@ -194,9 +194,6 @@ public final class DatabaseManager {
     private void closeTransactionConnection() {
         Connection connection = transactionConnection.get();
         transactionConnection.remove();
-        if (connection == null) {
-            return;
-        }
         try {
             connection.close();
         } catch (SQLException e) {
